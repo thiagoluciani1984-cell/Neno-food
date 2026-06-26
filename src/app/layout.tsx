@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  metadataBase: new URL(siteConfig.url),
+  metadataBase: new URL(siteConfig.url.startsWith("http") ? siteConfig.url : "http://localhost:3000"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
