@@ -1,0 +1,28 @@
+{
+  "name": "Nenos Food",
+  "short_name": "Nenos Food",
+  "description": "Peça, descubra e acompanhe os restaurantes da sua cidade.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E53935",
+  "theme_color": "#E53935",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["food", "shopping", "lifestyle"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

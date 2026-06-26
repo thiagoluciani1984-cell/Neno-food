@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+    /* Nenos Food — vermelho vibrante #E53935 · amarelo #FFB300 */
+    --background: 0 0% 96%;
+    --foreground: 0 0% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    /* Vermelho principal #E53935 */
+    --primary: 1 77% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Amarelo da marca #FFB300 */
+    --secondary: 42 100% 50%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 42 100% 50%;
+    --accent-foreground: 0 0% 20%;
+
+    --gold: 42 100% 50%;
+    --gold-foreground: 0 0% 20%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 1 77% 55%;
+
+    --radius: 0.875rem;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 1 77% 62%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 42 100% 50%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 42 100% 50%;
+    --accent-foreground: 0 0% 20%;
+
+    --gold: 42 100% 50%;
+    --gold-foreground: 0 0% 20%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 1 77% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Foco acessível */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2;
+  }
+
+  /* Inputs mais acessíveis */
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  /* Textos */
+  .text-balance {
+    text-wrap: balance;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Cores da marca */
+  .brand-yellow {
+    color: #FFB300;
+  }
+  .bg-brand-yellow {
+    background-color: #FFB300;
+  }
+
+  /* Gradientes */
+  .nenos-gradient {
+    background: linear-gradient(135deg, #E53935 0%, #c62828 100%);
+  }
+  .nenos-gradient-yellow {
+    background: linear-gradient(135deg, #FFB300 0%, #FF8F00 100%);
+  }
+  .nenos-gradient-diagonal {
+    background: linear-gradient(135deg, #E53935 0%, #FFB300 100%);
+  }
+
+  /* Scrollbar oculta (para carrosséis) */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-muted;
+  }
+
+  /* Área de toque mínima para mobile (48x48px) */
+  .touch-target {
+    @apply min-h-12 min-w-12;
+  }
+
+  /* Card hover padrão */
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Overlay escuro */
+  .overlay-dark {
+    @apply bg-black/50 backdrop-blur-sm;
+  }
+
+  /* Safe area para notch/barra de home */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* Animação de entrada suave */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in   { animation: fade-in 0.25s ease-out both; }
+.animate-slide-up  { animation: slide-up 0.3s ease-out both; }
+.animate-scale-in  { animation: scale-in 0.2s ease-out both; }
+
+/* Shimmer loading effect */
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--background)) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
