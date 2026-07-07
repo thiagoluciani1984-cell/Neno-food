@@ -233,11 +233,13 @@ export function StudioPage({
 }) {
   const router = useRouter();
   const [myImages, setMyImages] = useState(initialMyImages);
+  const [prevInitialMyImages, setPrevInitialMyImages] = useState(initialMyImages);
   const [nenosCategory, setNenosCategory] = useState("");
 
-  useEffect(() => {
+  if (initialMyImages !== prevInitialMyImages) {
+    setPrevInitialMyImages(initialMyImages);
     setMyImages(initialMyImages);
-  }, [initialMyImages]);
+  }
 
   const filteredNenos = nenosCategory
     ? nenosImages.filter((img) => img.category === nenosCategory)

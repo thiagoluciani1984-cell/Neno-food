@@ -68,11 +68,15 @@ export function MarketplaceContent({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
+  const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  useEffect(() => setQuery(initialQuery), [initialQuery]);
+  if (initialQuery !== prevInitialQuery) {
+    setPrevInitialQuery(initialQuery);
+    setQuery(initialQuery);
+  }
 
   useEffect(() => {
     const trimmed = query.trim();

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Home, Search, Rss, User, ShoppingBag } from "lucide-react";
 import { cartFabMotion, bottomNavMotion } from "@/lib/motion/nenos-motion";
 import { useNenosVariants } from "@/lib/motion/use-nenos-motion";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/use-cart";
 
@@ -25,21 +25,12 @@ export function StoreBottomNav() {
   const hasSearch = Boolean(searchParams.get("busca"));
   const items = useCart((s) => s.items);
   const restaurantSlug = useCart((s) => s.restaurantSlug);
-  const [mounted, setMounted] = useState(false);
-  const [cartChanged, setCartChanged] = useState(false);
+  const mounted = useMounted();
   const navVariants = useNenosVariants(bottomNavMotion);
 
-  useEffect(() => setMounted(true), []);
-
   const count = mounted ? items.reduce((s, i) => s + i.quantity, 0) : 0;
-  const cartHref = restaurantSlug ? `/${restaurantSlug}/cart` : "/cart";
 
-  useEffect(() => {
-    if (!mounted || count === 0) return;
-    setCartChanged(true);
-    const t = window.setTimeout(() => setCartChanged(false), 460);
-    return () => window.clearTimeout(t);
-  }, [count, mounted]);
+  const cartHref = restaurantSlug ? `/${restaurantSlug}/cart` : "/cart";
 
   function isActive(label: string) {
     if (label === "Início") return pathname === "/" && !hasSearch;
@@ -58,8 +49,10 @@ export function StoreBottomNav() {
     >
       <div className="relative border-t border-orange-100 bg-white/95 px-2 safe-bottom backdrop-blur-xl">
         <MotionLink
+          key={count > 0 ? `cart-${count}` : "cart"}
           href={cartHref}
-          animate={cartChanged ? "bounce" : "idle"}
+          initial="idle"
+          animate="bounce"
           variants={cartFabMotion}
           className="absolute -top-7 left-1/2 z-10 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full bg-nenos-gradient text-white shadow-orange-lg ring-4 ring-[#FFF9F2]"
           aria-label="Carrinho"

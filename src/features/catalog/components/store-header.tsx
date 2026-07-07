@@ -9,7 +9,7 @@ import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/cart/use-cart";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
-import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/use-mounted";
 import type { Notification } from "@/types/database.types";
 
 export function StoreHeader({
@@ -23,8 +23,7 @@ export function StoreHeader({
 }) {
   const items = useCart((s) => s.items);
   const restaurantSlug = useCart((s) => s.restaurantSlug);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const count = mounted ? items.reduce((s, i) => s + i.quantity, 0) : 0;
   const cartHref = restaurantSlug ? `/${restaurantSlug}/cart` : "/cart";

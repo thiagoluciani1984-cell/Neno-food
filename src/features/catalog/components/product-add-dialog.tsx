@@ -97,9 +97,37 @@ export function ProductAddDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        {open ? (
+          <ProductAddDialogBody
+            key={product.id}
+            product={product}
+            restaurantId={restaurantId}
+            restaurantSlug={restaurantSlug}
+            onOpenChange={onOpenChange}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProductAddDialogBody({
+  product,
+  restaurantId,
+  restaurantSlug,
+  onOpenChange,
+}: {
+  product: Product;
+  restaurantId: string;
+  restaurantSlug: string;
+  onOpenChange: (open: boolean) => void;
+}) {
   const addItem = useCart((s) => s.addItem);
   const [groups, setGroups] = useState<OptionGroupWithItems[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SelectedOptions>({});
   const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -107,18 +135,23 @@ export function ProductAddDialog({
   const basePrice = effectivePriceCents(product);
 
   useEffect(() => {
-    if (!open) return;
-
-    setLoading(true);
-    setSelected({});
-    setNotes("");
-    setQuantity(1);
+    let cancelled = false;
 
     fetchProductOptionsAction(product.id)
-      .then((data) => setGroups(data))
-      .catch(() => toast.error("Não foi possível carregar as opções."))
-      .finally(() => setLoading(false));
-  }, [open, product.id]);
+      .then((data) => {
+        if (!cancelled) setGroups(data);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Não foi possível carregar as opções.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id]);
 
   const snapshots = useMemo(
     () => buildSnapshots(groups, selected),
@@ -184,9 +217,8 @@ export function ProductAddDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
+    <>
+      <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
         </DialogHeader>
 
@@ -336,7 +368,6 @@ export function ProductAddDialog({
             Adicionar ao carrinho
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

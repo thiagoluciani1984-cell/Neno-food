@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { bottomBarMotion } from "@/lib/motion/nenos-motion";
 import { useCart } from "@/features/cart/use-cart";
 import { formatBRL } from "@/lib/money";
+import { useMounted } from "@/lib/use-mounted";
 
 type CartSummaryBarProps = {
   restaurantSlug: string;
@@ -42,9 +42,7 @@ export function RestaurantCartBar({ restaurantSlug }: { restaurantSlug: string }
   const items = useCart((s) => s.items);
   const slug = useCart((s) => s.restaurantSlug);
   const subtotal = useCart((s) => s.subtotalCents());
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const cartItems = items.reduce((s, i) => s + i.quantity, 0);
   const visible = mounted && slug === restaurantSlug && cartItems > 0;

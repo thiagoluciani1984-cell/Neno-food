@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts,.tsx --max-warnings 0",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=true eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "db:build": "node scripts/build-full-setup.js",
     "db:apply": "node scripts/apply-migrations.js",

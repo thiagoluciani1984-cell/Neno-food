@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/money";
 import { useCart } from "@/features/cart/use-cart";
 import { formatCartItemOptions } from "@/core/domain/entities/cart";
+import { useMounted } from "@/lib/use-mounted";
 import { createOrderAction, validateCouponAction } from "@/features/orders/actions";
 import type { Address } from "@/features/addresses/queries";
 import type { OrderType, PaymentMethod } from "@/types/database.types";
@@ -48,6 +49,19 @@ interface CheckoutSettings {
   defaultPhone: string;
   isLoggedIn: boolean;
   savedAddresses?: Address[];
+}
+
+function addressFormFromSaved(saved: Address) {
+  return {
+    street: saved.street,
+    number: saved.number,
+    complement: saved.complement ?? "",
+    district: saved.district,
+    city: saved.city,
+    state: saved.state,
+    zip: saved.zip,
+    reference: saved.reference ?? "",
+  };
 }
 
 /* ── Botão de tipo de pedido / pagamento ──────────────────────── */
@@ -84,8 +98,16 @@ function SelectionButton({
 export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const router = useRouter();
   const { items, subtotalCents, clear } = useCart();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
+
+  const defaultSavedId =
+    settings.savedAddresses?.find((a) => a.is_default)?.id ??
+    settings.savedAddresses?.[0]?.id ??
+    "new";
+  const defaultSavedAddress =
+    defaultSavedId !== "new"
+      ? settings.savedAddresses?.find((a) => a.id === defaultSavedId)
+      : undefined;
 
   const [type, setType] = useState<OrderType>(
     settings.acceptsDelivery ? "delivery" : "pickup"
@@ -105,13 +127,20 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   >({ state: "idle" });
   const [couponPending, startCouponTransition] = useTransition();
 
-  const [address, setAddress] = useState({
-    street: "", number: "", complement: "", district: "", city: "", state: "", zip: "", reference: "",
-  });
-  const defaultSavedId =
-    settings.savedAddresses?.find((a) => a.is_default)?.id ??
-    settings.savedAddresses?.[0]?.id ??
-    "new";
+  const [address, setAddress] = useState(() =>
+    defaultSavedAddress
+      ? addressFormFromSaved(defaultSavedAddress)
+      : {
+          street: "",
+          number: "",
+          complement: "",
+          district: "",
+          city: "",
+          state: "",
+          zip: "",
+          reference: "",
+        }
+  );
   const [addressSelection, setAddressSelection] = useState<"new" | string>(defaultSavedId);
   const [cepLoading, setCepLoading] = useState(false);
   const [changeFor, setChangeFor] = useState("");
@@ -127,21 +156,11 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const discount = couponState.state === "valid" ? couponState.discountCents : 0;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
-  useEffect(() => {
-    if (addressSelection === "new") return;
-    const saved = settings.savedAddresses?.find((a) => a.id === addressSelection);
-    if (!saved) return;
-    setAddress({
-      street: saved.street,
-      number: saved.number,
-      complement: saved.complement ?? "",
-      district: saved.district,
-      city: saved.city,
-      state: saved.state,
-      zip: saved.zip,
-      reference: saved.reference ?? "",
-    });
-  }, [addressSelection, settings.savedAddresses]);
+  function selectSavedAddress(id: string) {
+    setAddressSelection(id);
+    const saved = settings.savedAddresses?.find((a) => a.id === id);
+    if (saved) setAddress(addressFormFromSaved(saved));
+  }
 
   // ── CEP auto-fill ──────────────────────────────────────────────
   async function handleCEPBlur(cep: string) {
@@ -373,7 +392,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
                     <SelectionButton
                       key={saved.id}
                       active={addressSelection === saved.id}
-                      onClick={() => setAddressSelection(saved.id)}
+                      onClick={() => selectSavedAddress(saved.id)}
                       label={saved.label}
                       description={`${saved.street}, ${saved.number} — ${saved.district}`}
                     />

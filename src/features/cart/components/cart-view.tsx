@@ -9,14 +9,13 @@ import { Separator } from "@/components/ui/separator";
 import { formatBRL } from "@/lib/money";
 import { useCart } from "@/features/cart/use-cart";
 import { formatCartItemOptions } from "@/core/domain/entities/cart";
-import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/use-mounted";
 
 export function CartView() {
   const router = useRouter();
   const { items, restaurantSlug, setQuantity, removeItem, subtotalCents } =
     useCart();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   if (!mounted) return null;
 
