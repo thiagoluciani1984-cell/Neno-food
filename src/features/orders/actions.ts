@@ -2,11 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/infra/supabase/server";
+import { createAdminClient } from "@/infra/supabase/admin";
+import { captureException } from "@/lib/monitoring";
 import { computeCouponDiscountCents } from "@/core/domain/entities/cart";
 import { canTransition } from "@/core/domain/value-objects/order-status";
 import { notifyOrderStatusChange } from "@/features/notifications/lib";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
-import { createPagarmeOrder, isPagarmeConfigured, isPagarmeDevMock, createMockPagarmePixOrder } from "@/lib/payments";
+import {
+  createPagarmeOrder,
+  isPagarmeConfigured,
+  isPagarmeDevMock,
+  createMockPagarmePixOrder,
+  createMockPagarmeCreditCardOrder,
+} from "@/lib/payments";
 import { checkoutSchema, type CheckoutInput } from "./schemas";
 import { resolveCheckoutItemOptions } from "./validate-item-options";
 import type { OptionGroupWithItems } from "@/features/catalog/queries-options";
@@ -23,6 +31,7 @@ export type CreateOrderResult =
       orderId: string;
       orderNumber: number;
       paymentRedirect?: string;
+      guestAccessToken?: string;
     }
   | { ok: false; error: string };
 
@@ -86,18 +95,36 @@ export async function createOrderAction(
   }
   const data = parsed.data;
 
-  const supabase = await createClient();
+  const sessionClient = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Faça login para finalizar o pedido." };
+  } = await sessionClient.auth.getUser();
+  const isGuest = !user;
 
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("profile_id", user.id)
-    .single<{ id: string }>();
-  if (!customer) return { ok: false, error: "Perfil de cliente não encontrado." };
+  if (isGuest) {
+    if (data.paymentMethod === "online") {
+      return {
+        ok: false,
+        error: "Pagamento online exige login. Use PIX, dinheiro ou cartão na entrega.",
+      };
+    }
+    if (!data.guestEmail?.trim()) {
+      return { ok: false, error: "Informe seu e-mail para acompanhar o pedido." };
+    }
+  }
+
+  const supabase = isGuest ? createAdminClient() : sessionClient;
+
+  let customerId: string | null = null;
+  if (user) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("profile_id", user.id)
+      .single<{ id: string }>();
+    if (!customer) return { ok: false, error: "Perfil de cliente não encontrado." };
+    customerId = customer.id;
+  }
 
   // Preços confiáveis do banco
   const productIds = data.items.map((i) => i.productId);
@@ -241,11 +268,11 @@ export async function createOrderAction(
       const underLimit = coupon.usage_limit == null || coupon.used_count < coupon.usage_limit;
 
       let underPerCustomerLimit = true;
-      if (coupon.per_customer_limit != null) {
+      if (coupon.per_customer_limit != null && customerId) {
         const { count } = await supabase
           .from("orders")
           .select("id", { count: "exact", head: true })
-          .eq("customer_id", customer.id)
+          .eq("customer_id", customerId)
           .eq("coupon_id", coupon.id);
         underPerCustomerLimit = (count ?? 0) < coupon.per_customer_limit;
       }
@@ -277,20 +304,22 @@ export async function createOrderAction(
     if (document.length !== 11) {
       return { ok: false, error: "Informe um CPF válido para pagamento online." };
     }
-    if (!user.email) {
+    if (!user?.email && !data.guestEmail) {
       return {
         ok: false,
-        error: "Seu perfil precisa de um e-mail para pagamento online.",
+        error: "Informe um e-mail para pagamento online.",
       };
     }
   }
+
+  const payerEmail = user?.email ?? data.guestEmail!;
 
   // Cria pedido
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
       restaurant_id: data.restaurantId,
-      customer_id: customer.id,
+      customer_id: customerId,
       coupon_id: couponId,
       type: data.type,
       status: (isOnlinePayment ? "payment_pending" : "received") as OrderStatus,
@@ -306,8 +335,8 @@ export async function createOrderAction(
       total_cents: total,
       change_for_cents: data.changeForCents ?? null,
     })
-    .select("id, order_number")
-    .single<{ id: string; order_number: number }>();
+    .select("id, order_number, guest_access_token")
+    .single<{ id: string; order_number: number; guest_access_token: string | null }>();
 
   if (orderError || !order) {
     return { ok: false, error: "Não foi possível criar o pedido." };
@@ -383,7 +412,9 @@ export async function createOrderAction(
       const paymentType = data.onlinePaymentType ?? "pix";
 
       const pagarmeResult = isPagarmeDevMock()
-        ? createMockPagarmePixOrder(order.id)
+        ? paymentType === "pix"
+          ? createMockPagarmePixOrder(order.id)
+          : createMockPagarmeCreditCardOrder(order.id)
         : await createPagarmeOrder({
             orderId: order.id,
             orderNumber: order.order_number,
@@ -398,7 +429,7 @@ export async function createOrderAction(
             })),
             customer: {
               name: data.customerName,
-              email: user.email!,
+              email: payerEmail,
               document: data.customerDocument!,
               phone: data.customerPhone,
             },
@@ -439,9 +470,10 @@ export async function createOrderAction(
         orderId: order.id,
         orderNumber: order.order_number,
         paymentRedirect,
+        guestAccessToken: isGuest ? order.guest_access_token ?? undefined : undefined,
       };
     } catch (err) {
-      console.error("[pagarme] order error:", err);
+      captureException(err, { orderId: order.id, context: "pagarme-checkout" });
       await supabase
         .from("orders")
         .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
@@ -457,7 +489,12 @@ export async function createOrderAction(
   }
 
   revalidatePath("/dashboard/orders");
-  return { ok: true, orderId: order.id, orderNumber: order.order_number };
+  return {
+    ok: true,
+    orderId: order.id,
+    orderNumber: order.order_number,
+    guestAccessToken: isGuest ? order.guest_access_token ?? undefined : undefined,
+  };
 }
 
 /**

@@ -42,6 +42,19 @@ export function createMockPagarmePixOrder(
   };
 }
 
+export function createMockPagarmeCreditCardOrder(
+  orderId: string
+): PagarmePaymentResult {
+  return {
+    type: "credit_card",
+    data: {
+      chargeId: `mock_cc_${orderId}`,
+      orderCode: orderId,
+      checkoutUrl: null,
+    },
+  };
+}
+
 function authHeader(): string {
   const secret = getSecretKey();
   return `Basic ${Buffer.from(`${secret}:`).toString("base64")}`;

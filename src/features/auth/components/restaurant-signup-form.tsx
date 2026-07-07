@@ -64,6 +64,18 @@ export function RestaurantSignupForm() {
         <SubmitButton />
       </form>
 
+      <p className="text-center text-xs text-muted-foreground">
+        Ao cadastrar, você concorda com os{" "}
+        <Link href="/terms" className="text-primary hover:underline">
+          Termos de Uso
+        </Link>{" "}
+        e a{" "}
+        <Link href="/privacy" className="text-primary hover:underline">
+          Política de Privacidade
+        </Link>
+        .
+      </p>
+
       {/* Benefícios */}
       <div className="rounded-xl bg-primary/5 px-4 py-3">
         <p className="text-xs font-semibold text-primary mb-2">Por que escolher a Nenos Food?</p>

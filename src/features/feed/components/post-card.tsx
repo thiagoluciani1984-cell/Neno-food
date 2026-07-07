@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Heart,
@@ -31,6 +32,8 @@ import {
   reportPostAction,
   type PostComment,
 } from "../actions";
+import { likeMotion, likeCountMotion, saveMotion } from "@/lib/motion/nenos-motion";
+import { cn } from "@/lib/utils";
 import type { FeedPost } from "../queries";
 
 function relativeTime(dateStr: string): string {
@@ -47,7 +50,6 @@ function relativeTime(dateStr: string): string {
   );
 }
 
-/* ── Carrossel de imagens ─────────────────────────────────────────── */
 function ImageCarousel({ images }: { images: FeedPost["post_images"] }) {
   const [current, setCurrent] = useState(0);
   const sorted = [...images].sort((a, b) => a.sort_order - b.sort_order);
@@ -103,7 +105,6 @@ function ImageCarousel({ images }: { images: FeedPost["post_images"] }) {
   );
 }
 
-/* ── Seção de comentários expandida ─────────────────────────────── */
 function CommentsSection({
   postId,
   initialCount,
@@ -150,7 +151,6 @@ function CommentsSection({
 
   return (
     <div className="border-t">
-      {/* Lista de comentários */}
       {loading ? (
         <div className="flex justify-center py-4">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -193,7 +193,6 @@ function CommentsSection({
         </div>
       )}
 
-      {/* Input de novo comentário */}
       <div className="flex items-center gap-2 border-t px-4 py-2">
         <Input
           ref={inputRef}
@@ -222,11 +221,37 @@ function CommentsSection({
   );
 }
 
-/* ── Card principal ───────────────────────────────────────────────── */
+function LikeParticles({ active }: { active: boolean }) {
+  if (!active) return null;
+
+  return (
+    <span className="pointer-events-none absolute inset-0 overflow-visible">
+      {Array.from({ length: 6 }).map((_, i) => {
+        const angle = (i / 6) * Math.PI * 2;
+        return (
+          <motion.span
+            key={i}
+            initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
+            animate={{
+              opacity: [1, 0],
+              scale: [0.4, 1.1],
+              x: Math.cos(angle) * 16,
+              y: Math.sin(angle) * 16 - 6,
+            }}
+            transition={{ duration: 0.42, ease: "easeOut" }}
+            className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-secondary"
+          />
+        );
+      })}
+    </span>
+  );
+}
+
 export function PostCard({ post }: { post: FeedPost }) {
   const [liked, setLiked] = useState(post.is_liked);
   const [saved, setSaved] = useState(post.is_saved);
   const [likesCount, setLikesCount] = useState(post.likes_count);
+  const [likeBurst, setLikeBurst] = useState(false);
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [showComments, setShowComments] = useState(false);
 
@@ -234,6 +259,10 @@ export function PostCard({ post }: { post: FeedPost }) {
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikesCount((c) => c + (wasLiked ? -1 : 1));
+    if (!wasLiked) {
+      setLikeBurst(true);
+      window.setTimeout(() => setLikeBurst(false), 420);
+    }
 
     const res = await toggleLikeAction(post.id);
     if ("error" in res) {
@@ -261,8 +290,7 @@ export function PostCard({ post }: { post: FeedPost }) {
   }
 
   return (
-    <article className="overflow-hidden rounded-xl border bg-card">
-      {/* Cabeçalho */}
+    <article className="overflow-hidden rounded-3xl border border-orange-100 bg-card hover-nenos-lift">
       <div className="flex items-center gap-3 p-3">
         <Link
           href={`/${post.restaurant.slug}`}
@@ -323,27 +351,37 @@ export function PostCard({ post }: { post: FeedPost }) {
         </DropdownMenu>
       </div>
 
-      {/* Imagens */}
       {post.post_images.length > 0 && <ImageCarousel images={post.post_images} />}
 
-      {/* Ações */}
       <div className="flex items-center gap-1 px-3 pt-3">
-        <button
-          type="button"
-          onClick={handleLike}
-          className={[
-            "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors",
-            liked ? "text-red-500" : "text-muted-foreground hover:text-foreground",
-          ].join(" ")}
-        >
-          <Heart
-            className={[
-              "h-5 w-5 transition-transform active:scale-125",
-              liked ? "fill-current" : "",
-            ].join(" ")}
-          />
-          {likesCount > 0 && <span className="text-xs">{likesCount}</span>}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <motion.button
+            type="button"
+            onClick={handleLike}
+            animate={liked ? "liked" : "idle"}
+            variants={likeMotion}
+            whileTap={{ scale: 0.88 }}
+            className={cn(
+              "relative rounded-lg px-2 py-1.5",
+              liked ? "text-primary" : "text-stone-900"
+            )}
+            aria-label={liked ? "Descurtir" : "Curtir"}
+          >
+            <LikeParticles active={likeBurst} />
+            <Heart className={cn("h-6 w-6", liked && "fill-primary")} />
+          </motion.button>
+          {likesCount > 0 && (
+            <motion.span
+              key={likesCount}
+              variants={likeCountMotion}
+              initial="initial"
+              animate="animate"
+              className="text-xs font-medium text-stone-900"
+            >
+              {likesCount}
+            </motion.span>
+          )}
+        </div>
 
         <button
           type="button"
@@ -356,19 +394,22 @@ export function PostCard({ post }: { post: FeedPost }) {
           {commentsCount > 0 && <span className="text-xs">{commentsCount}</span>}
         </button>
 
-        <button
+        <motion.button
           type="button"
           onClick={handleSave}
-          className={[
-            "ml-auto flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors",
-            saved ? "text-primary" : "text-muted-foreground hover:text-foreground",
-          ].join(" ")}
+          animate={saved ? "saved" : "idle"}
+          variants={saveMotion}
+          whileTap={{ scale: 0.9 }}
+          className={cn(
+            "ml-auto rounded-lg px-2 py-1.5",
+            saved ? "text-secondary" : "text-stone-900"
+          )}
+          aria-label={saved ? "Remover dos salvos" : "Salvar"}
         >
-          <Bookmark className={["h-5 w-5", saved ? "fill-current" : ""].join(" ")} />
-        </button>
+          <Bookmark className={cn("h-6 w-6", saved && "fill-secondary")} />
+        </motion.button>
       </div>
 
-      {/* Legenda */}
       {post.caption && (
         <div className="px-4 pb-2 pt-1">
           <p className="text-sm">
@@ -383,7 +424,6 @@ export function PostCard({ post }: { post: FeedPost }) {
         </div>
       )}
 
-      {/* Comentários */}
       {showComments && (
         <CommentsSection
           postId={post.id}

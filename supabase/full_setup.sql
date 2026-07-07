@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 22 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-07T09:47:40.292Z
+-- Conteúdo: 24 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-07T14:30:00.229Z
 -- =====================================================================
 
 
@@ -2329,6 +2329,40 @@ comment on column public.payments.provider_payload is
 update public.restaurant_settings
 set payment_methods = payment_methods || 'online'::public.payment_method
 where not 'online'::public.payment_method = any (payment_methods);
+
+
+-- ─── 0023_delivery_tracking_realtime.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0023 · Realtime para posições GPS do entregador (mapa do cliente)
+-- =====================================================================
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'delivery_tracking'
+  ) then
+    alter publication supabase_realtime add table public.delivery_tracking;
+  end if;
+end $$;
+
+
+-- ─── 0024_guest_orders.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0024 · Pedidos como convidado (token de acesso para rastreamento)
+-- =====================================================================
+
+alter table public.orders
+  add column if not exists guest_access_token uuid default gen_random_uuid();
+
+create index if not exists idx_orders_guest_token
+  on public.orders (guest_access_token)
+  where guest_access_token is not null;
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────

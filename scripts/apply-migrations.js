@@ -1,5 +1,5 @@
 /**
- * Aplica todas as migrations em supabase/migrations/ em ordem (0001–0022).
+ * Aplica todas as migrations em supabase/migrations/ em ordem (0001–0024).
  * Idempotente: migrations usam IF NOT EXISTS / ADD COLUMN IF NOT EXISTS.
  *
  * Uso: PGPW=senha npm run db:apply

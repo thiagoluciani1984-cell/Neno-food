@@ -57,6 +57,8 @@ Em **Authentication → URL Configuration**:
 - **Site URL:** `https://seu-dominio.vercel.app`
 - **Redirect URLs:**
   - `https://seu-dominio.vercel.app/**`
+  - `https://seu-dominio.vercel.app/auth/callback`
+  - `https://seu-dominio.vercel.app/auth/reset-password`
   - `http://localhost:3000/**` (dev)
 
 ---

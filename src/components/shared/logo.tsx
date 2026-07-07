@@ -1,39 +1,39 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+
+const LOGO_SRC = "/brand/logo.png";
 
 export function Logo({
   className,
   href = "/",
-  subtitle = true,
+  subtitle = false,
+  size = "md",
 }: {
   className?: string;
   href?: string;
   subtitle?: boolean;
+  size?: "sm" | "md" | "lg";
 }) {
-  return (
-    <Link href={href} className={cn("flex items-center gap-2", className)}>
-      {/* Ícone da marca — círculo vermelho com mascote */}
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm">
-        <span className="text-xl leading-none select-none">🍔</span>
-        {/* Traços de velocidade (delivery) */}
-        <span className="absolute -left-2 top-1/2 -translate-y-1/2 flex flex-col gap-[3px]">
-          <span className="block h-[2px] w-2 rounded-full bg-primary opacity-70" />
-          <span className="block h-[2px] w-3 rounded-full bg-primary opacity-50" />
-          <span className="block h-[2px] w-1.5 rounded-full bg-primary opacity-30" />
-        </span>
-      </div>
+  const heights = { sm: 32, md: 40, lg: 52 } as const;
+  const h = heights[size];
 
-      {/* Wordmark */}
-      <div className="flex flex-col leading-none">
-        <span className="text-xl font-extrabold tracking-tight text-primary">
-          nenos
+  return (
+    <Link href={href} className={cn("inline-flex items-center", className)}>
+      <Image
+        src={LOGO_SRC}
+        alt="Nenos Food"
+        width={Math.round(h * 2.8)}
+        height={h}
+        className="h-auto w-auto object-contain"
+        style={{ height: h, width: "auto" }}
+        priority
+      />
+      {subtitle && (
+        <span className="ml-2 hidden text-xs font-semibold text-muted-foreground sm:inline">
+          Delivery
         </span>
-        {subtitle && (
-          <span className="text-sm font-bold tracking-wide" style={{ color: "#FFB300" }}>
-            food
-          </span>
-        )}
-      </div>
+      )}
     </Link>
   );
 }

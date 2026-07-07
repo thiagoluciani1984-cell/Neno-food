@@ -44,9 +44,11 @@ npm install
 
 ```bash
 cp .env.local.example .env.local
+# ou: cp .env.example .env.local
 ```
 
 Preencha as credenciais Supabase. Para dev sem Pagar.me, mantenha `PAGARME_DEV_MOCK=true`.
+Referência completa: [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
 ### 3. Banco de dados
 
@@ -76,10 +78,13 @@ Acesse http://localhost:3000
 | `npm run build` | Build de produção |
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run db:build` | Gera `supabase/full_setup.sql` |
-| `npm run db:apply` | Aplica migrations 0001–0022 no Supabase |
+| `npm run db:apply` | Aplica migrations 0001–0024 no Supabase |
 | `npm run db:apply:full` | Aplica `full_setup.sql` (banco vazio) |
 | `npm run db:types` | Regenera tipos TS (Supabase CLI local) |
 | `npm run db:verify` | Testa conexão Pagar.me |
+| `npm run seed:studio` | Popula Biblioteca Nenos Studio (imagens exemplo) |
+| `npm run test:e2e` | Testes smoke Playwright (requer `npm run dev`) |
+| `npm run icons:generate` | Gera ícones PWA a partir do logo |
 
 ### Seeds (dados de exemplo)
 

@@ -58,10 +58,12 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
         brand: {
-          red: "#E53935",
-          yellow: "#FFB300",
-          dark: "#333333",
-          light: "#F5F5F5",
+          orange: "#F97316",
+          orangeDark: "#EA580C",
+          yellow: "#FBBF24",
+          yellowDark: "#F59E0B",
+          dark: "#1C1917",
+          light: "#FFF9F2",
         },
       },
       borderRadius: {

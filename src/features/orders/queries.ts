@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/infra/supabase/server";
-import type { OrderWithItems } from "@/types/database.types";
+import { createAdminClient } from "@/infra/supabase/admin";
+import type { OrderWithItems, Restaurant } from "@/types/database.types";
 
 const ACTIVE_STATUSES = [
   "received",
@@ -22,4 +23,41 @@ export async function getActiveOrders(
     .order("created_at", { ascending: true });
 
   return (data ?? []) as OrderWithItems[];
+}
+
+type OrderDetail = OrderWithItems & {
+  restaurants: Pick<Restaurant, "id" | "name" | "slug" | "logo_url"> | null;
+};
+
+/** Busca pedido para rastreamento (autenticado via RLS ou token de convidado). */
+export async function getOrderForTracking(
+  orderId: string,
+  guestToken?: string
+): Promise<OrderDetail | null> {
+  const select = `
+    *,
+    order_items(*, order_item_options(*)),
+    restaurants(id, name, slug, logo_url)
+  `;
+
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select(select)
+    .eq("id", orderId)
+    .maybeSingle<OrderDetail>();
+
+  if (order) return order;
+
+  if (!guestToken) return null;
+
+  const admin = createAdminClient();
+  const { data: guestOrder } = await admin
+    .from("orders")
+    .select(select)
+    .eq("id", orderId)
+    .eq("guest_access_token", guestToken)
+    .maybeSingle<OrderDetail>();
+
+  return guestOrder;
 }

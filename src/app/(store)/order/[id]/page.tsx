@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Store } from "lucide-react";
-import { createClient } from "@/infra/supabase/server";
+import { MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { OrderTracker } from "@/features/orders/components/order-tracker";
+import { OrderActiveBanner } from "@/features/orders/components/order-active-banner";
 import { OrderPaymentBanner } from "@/features/orders/components/order-payment-banner";
 import { DeliveryPinCard } from "@/features/orders/components/delivery-pin-card";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { getDeliveryCodeForOrder, getLatestTrackingPoint } from "@/features/delivery/queries";
 import { DeliveryTrackingCard } from "@/features/delivery/components/delivery-tracking-card";
+import { getOrderForTracking } from "@/features/orders/queries";
 import { formatBRL } from "@/lib/money";
 import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
 import type { OrderWithItems, Restaurant } from "@/types/database.types";
@@ -26,24 +26,15 @@ type OrderDetail = OrderWithItems & {
 
 export default async function OrderPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const { token } = await searchParams;
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select(
-      `
-      *,
-      order_items(*, order_item_options(*)),
-      restaurants(id, name, slug, logo_url)
-    `
-    )
-    .eq("id", id)
-    .single<OrderDetail>();
-
+  const order = await getOrderForTracking(id, token);
   if (!order) notFound();
 
   const deliveryCode =
@@ -63,30 +54,19 @@ export default async function OrderPage({
   const backHref = restaurant?.slug ? `/${restaurant.slug}` : "/";
 
   return (
-    <div className="container max-w-2xl py-10">
-      <div className="mb-6 text-center">
-        {restaurant && (
-          <div className="mb-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            {restaurant.logo_url ? (
-              <Image
-                src={restaurant.logo_url}
-                alt={restaurant.name}
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-            ) : (
-              <Store className="h-4 w-4" />
-            )}
-            <span>{restaurant.name}</span>
-          </div>
-        )}
-        <p className="text-sm text-muted-foreground">Pedido</p>
-        <h1 className="font-serif text-3xl font-bold">#{order.order_number}</h1>
-        <Badge variant="outline" className="mt-2">
-          {ORDER_STATUS_LABEL[order.status]}
-        </Badge>
+    <div className="container max-w-2xl space-y-5 py-6">
+      <div>
+        <h1 className="text-2xl font-extrabold">Rastreamento do pedido</h1>
+        <p className="text-sm text-muted-foreground">
+          Acompanhe seu pedido em tempo real
+        </p>
       </div>
+
+      <OrderActiveBanner
+        orderNumber={String(order.order_number)}
+        restaurantName={restaurant?.name ?? "Nenos Food"}
+        statusLabel={ORDER_STATUS_LABEL[order.status]}
+      />
 
       {order.status === "payment_pending" && (
         <OrderPaymentBanner orderId={order.id} />
@@ -107,20 +87,13 @@ export default async function OrderPage({
         />
       )}
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Acompanhe em tempo real</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <OrderTracker
-            orderId={order.id}
-            initialStatus={order.status}
-            orderType={order.type}
-          />
-        </CardContent>
-      </Card>
+      <OrderTracker
+        orderId={order.id}
+        initialStatus={order.status}
+        orderType={order.type}
+      />
 
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
           <CardTitle>Detalhes</CardTitle>
         </CardHeader>

@@ -1,3 +1,5 @@
+@import "../styles/nenos-animations.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,39 +8,39 @@
   :root {
     --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-    /* Nenos Food — vermelho vibrante #E53935 · amarelo #FFB300 */
-    --background: 0 0% 96%;
-    --foreground: 0 0% 20%;
+    /* Nenos Food — laranja #F97316 · amarelo #FBBF24 */
+    --background: 34 100% 97%;
+    --foreground: 24 10% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
+    --card-foreground: 24 10% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
+    --popover-foreground: 24 10% 10%;
 
-    /* Vermelho principal #E53935 */
-    --primary: 1 77% 55%;
+    /* Laranja principal #F97316 */
+    --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    /* Amarelo da marca #FFB300 */
-    --secondary: 42 100% 50%;
-    --secondary-foreground: 0 0% 20%;
+    /* Amarelo da marca #FBBF24 */
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 24 10% 10%;
 
-    --muted: 0 0% 92%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 34 40% 94%;
+    --muted-foreground: 25 5% 45%;
 
-    --accent: 42 100% 50%;
-    --accent-foreground: 0 0% 20%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 24 10% 10%;
 
-    --gold: 42 100% 50%;
-    --gold-foreground: 0 0% 20%;
+    --gold: 43 96% 56%;
+    --gold-foreground: 24 10% 10%;
 
     --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 1 77% 55%;
+    --border: 34 30% 90%;
+    --input: 34 30% 90%;
+    --ring: 25 95% 53%;
 
     --radius: 0.875rem;
   }
@@ -53,27 +55,27 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 1 77% 62%;
+    --primary: 25 95% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 42 100% 50%;
-    --secondary-foreground: 0 0% 20%;
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 24 10% 10%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 24 10% 18%;
+    --muted-foreground: 25 5% 60%;
 
-    --accent: 42 100% 50%;
-    --accent-foreground: 0 0% 20%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 24 10% 10%;
 
-    --gold: 42 100% 50%;
-    --gold-foreground: 0 0% 20%;
+    --gold: 43 96% 56%;
+    --gold-foreground: 24 10% 10%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 1 77% 62%;
+    --border: 24 10% 22%;
+    --input: 24 10% 22%;
+    --ring: 25 95% 58%;
   }
 }
 
@@ -118,21 +120,40 @@
 
   /* Cores da marca */
   .brand-yellow {
-    color: #FFB300;
+    color: #FBBF24;
   }
   .bg-brand-yellow {
-    background-color: #FFB300;
+    background-color: #FBBF24;
+  }
+
+  .bg-warm {
+    background-color: #FFF9F2;
   }
 
   /* Gradientes */
   .nenos-gradient {
-    background: linear-gradient(135deg, #E53935 0%, #c62828 100%);
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
   }
   .nenos-gradient-yellow {
-    background: linear-gradient(135deg, #FFB300 0%, #FF8F00 100%);
+    background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
   }
   .nenos-gradient-diagonal {
-    background: linear-gradient(135deg, #E53935 0%, #FFB300 100%);
+    background: linear-gradient(135deg, #F97316 0%, #FBBF24 100%);
+  }
+  .nenos-gradient-soft {
+    background: linear-gradient(180deg, #FFF9F2 0%, #FFEDD5 40%, #FFF9F2 100%);
+  }
+
+  .bg-nenos-gradient {
+    @apply nenos-gradient;
+  }
+
+  .shadow-orange {
+    @apply shadow-lg shadow-primary/25;
+  }
+
+  .shadow-orange-lg {
+    @apply shadow-xl shadow-primary/40;
   }
 
   /* Scrollbar oculta (para carrosséis) */
@@ -171,38 +192,4 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
-}
-
-/* Animação de entrada suave */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
-}
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.animate-fade-in   { animation: fade-in 0.25s ease-out both; }
-.animate-slide-up  { animation: slide-up 0.3s ease-out both; }
-.animate-scale-in  { animation: scale-in 0.2s ease-out both; }
-
-/* Shimmer loading effect */
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--background)) 50%,
-    hsl(var(--muted)) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
 }

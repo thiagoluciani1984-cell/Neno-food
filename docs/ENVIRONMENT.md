@@ -29,6 +29,7 @@ Copie `.env.local.example` para `.env.local` e preencha.
 | `PAGARME_WEBHOOK_USER` | Webhook | Basic auth — usuário |
 | `PAGARME_WEBHOOK_PASSWORD` | Webhook | Basic auth — senha |
 | `PAGARME_PIX_EXPIRES_IN` | Não | Expiração PIX em segundos (padrão: 3600) |
+| `SENTRY_DSN` | Não | Monitoramento de erros (webhook, pagamentos) |
 
 ## Scripts de banco (terminal only)
 

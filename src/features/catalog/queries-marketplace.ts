@@ -131,6 +131,71 @@ export async function searchMarketplaceProducts(
 
   if (!data) return [];
 
+  return mapProductHits(data as Array<Record<string, unknown>>);
+}
+
+export async function getFeaturedProducts(
+  limit = 8
+): Promise<MarketplaceProductHit[]> {
+  const supabase = await createClient();
+
+  const activeIds = await withTimeout(async (signal) => {
+    const { data } = await supabase
+      .from("restaurants")
+      .select("id")
+      .eq("status", "active")
+      .abortSignal(signal);
+    return (data ?? []).map((r) => r.id);
+  });
+
+  if (!activeIds?.length) return [];
+
+  const data = await withTimeout(async (signal) => {
+    const { data: rows } = await supabase
+      .from("products")
+      .select(
+        `
+        id, name, slug, description, price_cents, promo_price_cents, image_url,
+        restaurants(id, name, slug, logo_url)
+      `
+      )
+      .in("restaurant_id", activeIds)
+      .eq("is_available", true)
+      .eq("is_featured", true)
+      .order("name")
+      .limit(limit)
+      .abortSignal(signal);
+
+    return rows;
+  });
+
+  if (!data?.length) {
+    const fallback = await withTimeout(async (signal) => {
+      const { data: rows } = await supabase
+        .from("products")
+        .select(
+          `
+          id, name, slug, description, price_cents, promo_price_cents, image_url,
+          restaurants(id, name, slug, logo_url)
+        `
+        )
+        .in("restaurant_id", activeIds)
+        .eq("is_available", true)
+        .order("name")
+        .limit(limit)
+        .abortSignal(signal);
+      return rows;
+    });
+    if (!fallback) return [];
+    return mapProductHits(fallback);
+  }
+
+  return mapProductHits(data);
+}
+
+function mapProductHits(
+  data: Array<Record<string, unknown>>
+): MarketplaceProductHit[] {
   return data.map((row) => {
     const raw = row.restaurants;
     const restaurant = (Array.isArray(raw) ? raw[0] : raw) as Pick<
@@ -139,13 +204,13 @@ export async function searchMarketplaceProducts(
     >;
     return {
       product: {
-        id: row.id,
-        name: row.name,
-        slug: row.slug,
-        description: row.description,
-        price_cents: row.price_cents,
-        promo_price_cents: row.promo_price_cents,
-        image_url: row.image_url,
+        id: row.id as string,
+        name: row.name as string,
+        slug: row.slug as string,
+        description: row.description as string | null,
+        price_cents: row.price_cents as number,
+        promo_price_cents: row.promo_price_cents as number | null,
+        image_url: row.image_url as string | null,
       },
       restaurant,
     };

@@ -20,6 +20,7 @@ export const checkoutSchema = z.object({
   customerName: z.string().min(2, "Informe seu nome"),
   customerPhone: z.string().min(8, "Informe um telefone"),
   customerDocument: z.string().optional(),
+  guestEmail: z.string().email("Informe um e-mail válido").optional(),
   onlinePaymentType: z.enum(["pix", "credit_card"]).optional(),
   notes: z.string().optional(),
   couponCode: z.string().optional(),

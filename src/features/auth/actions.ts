@@ -8,6 +8,7 @@ import {
   loginSchema,
   signupSchema,
   forgotPasswordSchema,
+  resetPasswordSchema,
 } from "./schemas";
 
 export type ActionResult = { error?: string; success?: boolean };
@@ -94,11 +95,42 @@ export async function forgotPasswordAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${siteConfig.url}/auth/reset-password`,
+    redirectTo: `${siteConfig.url}/auth/callback?next=/auth/reset-password`,
   });
   if (error) return { error: error.message };
 
   return { success: true };
+}
+
+export async function resetPasswordAction(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Sessão inválida. Solicite um novo link de recuperação." };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+  if (error) return { error: error.message };
+
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/login?reset=success");
 }
 
 export async function logoutAction() {

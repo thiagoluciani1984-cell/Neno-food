@@ -1,6 +1,7 @@
 export {
   createPagarmeOrder,
   createMockPagarmePixOrder,
+  createMockPagarmeCreditCardOrder,
   extractOrderIdFromWebhook,
   getPagarmeChargeStatus,
   isPagarmeConfigured,

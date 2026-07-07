@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { captureException, captureMessage } from "@/lib/monitoring";
 import {
   applyOrderPaymentUpdate,
   extractOrderIdFromWebhook,
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   const orderId = extractOrderIdFromWebhook(payload);
 
   if (!orderId) {
-    console.warn("[pagarme-webhook] order_id não encontrado", eventType);
+    captureMessage("pagarme-webhook: order_id não encontrado", { eventType });
     return NextResponse.json({ ok: true });
   }
 
@@ -57,11 +58,17 @@ export async function POST(req: NextRequest) {
   const providerRef =
     payload.data?.charges?.[0]?.id ?? payload.data?.id ?? null;
 
-  await applyOrderPaymentUpdate(orderId, paymentStatus, providerRef);
-
-  console.log(
-    `[pagarme-webhook] ${eventType} → order ${orderId} → ${paymentStatus}`
-  );
+  try {
+    await applyOrderPaymentUpdate(orderId, paymentStatus, providerRef);
+    captureMessage("pagarme-webhook: pagamento atualizado", {
+      eventType,
+      orderId,
+      paymentStatus,
+    });
+  } catch (error) {
+    captureException(error, { eventType, orderId, paymentStatus });
+    return NextResponse.json({ error: "update failed" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

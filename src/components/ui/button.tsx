@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import { nenosClass } from "@/lib/motion/nenos-motion";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -9,6 +10,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        nenos: nenosClass.buttonPrimary,
+        nenosOutline: nenosClass.buttonSecondary,
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
@@ -24,6 +27,7 @@ const buttonVariants = cva(
         sm: "h-9 rounded-md px-3 text-xs",
         lg: "h-11 rounded-md px-8",
         icon: "h-10 w-10",
+        nenos: "h-auto",
       },
     },
     defaultVariants: { variant: "default", size: "default" },
@@ -39,9 +43,12 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    const resolvedSize =
+      variant === "nenos" || variant === "nenosOutline" ? "nenos" : size;
+
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size: resolvedSize, className }))}
         ref={ref}
         {...props}
       />

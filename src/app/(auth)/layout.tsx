@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
 
 export default function AuthLayout({
   children,
@@ -7,50 +8,55 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Painel de marca */}
-      <div className="relative hidden flex-col justify-between bg-primary p-12 text-primary-foreground lg:flex">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 text-xl">🍔</span>
-          <div>
-            <span className="text-xl font-extrabold text-white">nenos</span>
-            <span className="text-xl font-bold" style={{ color: "#FFB300" }}>food</span>
-          </div>
-        </Link>
+      <div className="relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+        <div className="absolute inset-0 nenos-gradient" />
+        <div className="absolute -right-24 top-20 h-80 w-80 rounded-full bg-secondary/40 blur-3xl" />
+        <div className="absolute -left-16 bottom-10 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
 
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold leading-tight">
+        <div className="relative">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur-sm">
+              🍔
+            </span>
+            <div className="leading-none">
+              <span className="text-2xl font-extrabold text-white">nenos</span>
+              <span className="block text-sm font-bold text-secondary">food</span>
+            </div>
+          </Link>
+        </div>
+
+        <div className="relative space-y-5">
+          <h1 className="text-4xl font-extrabold leading-tight">
             Rápido, fácil
             <br />
-            <span style={{ color: "#FFB300" }}>e delicioso!</span>
+            <span className="text-secondary">e delicioso!</span>
           </h1>
-          <p className="max-w-md text-primary-foreground/80 text-lg">
+          <p className="max-w-md text-lg text-white/85">
             A plataforma completa de delivery para restaurantes e clientes.
             Gerencie pedidos, cardápio e entregas em um só lugar.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             {["🍕 Restaurantes", "🛵 Entregadores", "📱 Clientes"].map((item) => (
-              <span key={item} className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium">
+              <span
+                key={item}
+                className="rounded-full border border-white/20 bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur-sm"
+              >
                 {item}
               </span>
             ))}
           </div>
         </div>
 
-        <p className="text-sm text-primary-foreground/60">
+        <p className="relative text-sm text-white/60">
           © {new Date().getFullYear()} Nenos Food · Todos os direitos reservados
         </p>
       </div>
 
-      {/* Formulário */}
-      <div className="flex items-center justify-center p-6 sm:p-12">
+      <div className="flex items-center justify-center bg-[#FFF9F2] p-6 sm:p-12">
         <div className="w-full max-w-sm">
-          {/* Logo mobile */}
-          <Link href="/" className="mb-8 flex items-center gap-1.5 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-base">🍔</span>
-            <span className="text-lg font-extrabold text-primary">nenos</span>
-            <span className="text-lg font-bold" style={{ color: "#FFB300" }}>food</span>
-          </Link>
+          <div className="mb-8 lg:hidden">
+            <Logo />
+          </div>
           {children}
         </div>
       </div>

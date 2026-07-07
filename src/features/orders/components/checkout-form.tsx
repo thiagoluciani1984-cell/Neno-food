@@ -32,7 +32,7 @@ const PAYMENT_CONFIG: Record<PaymentMethod, { label: string; icon: React.Element
   pix:    { label: "PIX",             icon: Smartphone, description: "Aprovação imediata" },
   cash:   { label: "Dinheiro",        icon: Banknote,   description: "Pague na entrega" },
   card:   { label: "Cartão",          icon: CreditCard, description: "Débito ou crédito na entrega" },
-  online: { label: "PIX online",      icon: Smartphone, description: "Pagar.me · pague agora via QR Code" },
+  online: { label: "Pagar online",    icon: CreditCard, description: "PIX ou cartão via Pagar.me" },
 };
 
 interface CheckoutSettings {
@@ -93,6 +93,8 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const [payment, setPayment] = useState<PaymentMethod>(
     settings.paymentMethods[0] ?? "pix"
   );
+  const [onlinePaymentType, setOnlinePaymentType] = useState<"pix" | "credit_card">("pix");
+  const [guestEmail, setGuestEmail] = useState("");
   const [customerDocument, setCustomerDocument] = useState("");
   const [name, setName] = useState(settings.defaultName);
   const [phone, setPhone] = useState(settings.defaultPhone);
@@ -196,11 +198,13 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   }
 
   async function handleSubmit() {
-    if (!settings.isLoggedIn) {
-      toast.error("Faça login para finalizar o pedido.");
-      router.push(
-        `/login?redirect=/${settings.restaurantSlug}/checkout`
-      );
+    if (!settings.isLoggedIn && payment === "online") {
+      toast.error("Pagamento online exige login.");
+      router.push(`/login?redirect=/${settings.restaurantSlug}/checkout`);
+      return;
+    }
+    if (!settings.isLoggedIn && !guestEmail.trim()) {
+      toast.error("Informe seu e-mail para acompanhar o pedido.");
       return;
     }
     if (subtotal < settings.minOrderCents) {
@@ -235,8 +239,9 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
       paymentMethod: payment,
       customerName: name,
       customerPhone: phone,
+      guestEmail: settings.isLoggedIn ? undefined : guestEmail.trim(),
       customerDocument: payment === "online" ? customerDocument : undefined,
-      onlinePaymentType: payment === "online" ? "pix" : undefined,
+      onlinePaymentType: payment === "online" ? onlinePaymentType : undefined,
       notes: notes || undefined,
       couponCode: couponState.state === "valid" ? coupon : undefined,
       changeForCents,
@@ -264,7 +269,10 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
         }
       } else {
         toast.success(`Pedido #${result.orderNumber} recebido!`);
-        router.push(`/order/${result.orderId}`);
+        const tokenQs = result.guestAccessToken
+          ? `?token=${result.guestAccessToken}`
+          : "";
+        router.push(`/order/${result.orderId}${tokenQs}`);
       }
     } else {
       toast.error(result.error);
@@ -334,6 +342,21 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
               <Label>Telefone / WhatsApp</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
             </div>
+            {!settings.isLoggedIn && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder="voce@email.com"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usado para enviar o link de acompanhamento do pedido.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -435,19 +458,34 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
         {payment === "online" && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">PIX online (Pagar.me)</CardTitle>
+              <CardTitle className="text-base">Pagamento online</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1.5">
-              <Label>CPF do pagador</Label>
-              <Input
-                value={customerDocument}
-                onChange={(e) => setCustomerDocument(e.target.value)}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-              />
-              <p className="text-xs text-muted-foreground">
-                O QR Code PIX será exibido na próxima tela.
-              </p>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <SelectionButton
+                  active={onlinePaymentType === "pix"}
+                  onClick={() => setOnlinePaymentType("pix")}
+                  icon={Smartphone}
+                  label="PIX"
+                  description="QR Code na próxima tela"
+                />
+                <SelectionButton
+                  active={onlinePaymentType === "credit_card"}
+                  onClick={() => setOnlinePaymentType("credit_card")}
+                  icon={CreditCard}
+                  label="Cartão"
+                  description="Checkout seguro Pagar.me"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>CPF do pagador</Label>
+                <Input
+                  value={customerDocument}
+                  onChange={(e) => setCustomerDocument(e.target.value)}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                />
+              </div>
             </CardContent>
           </Card>
         )}
@@ -550,7 +588,9 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
             {/* Aviso MercadoPago */}
             {payment === "online" && (
               <div className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                Você verá o QR Code PIX na próxima tela. O pedido é confirmado automaticamente após o pagamento.
+                {onlinePaymentType === "pix"
+                  ? "Você verá o QR Code PIX na próxima tela. O pedido confirma automaticamente após o pagamento."
+                  : "Você será redirecionado ao checkout seguro do Pagar.me para pagar com cartão."}
               </div>
             )}
 
@@ -563,7 +603,11 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
               {submitting ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</>
               ) : payment === "online" ? (
-                <>Gerar PIX <ChevronRight className="ml-1 h-4 w-4" /></>
+                onlinePaymentType === "pix" ? (
+                  <>Gerar PIX <ChevronRight className="ml-1 h-4 w-4" /></>
+                ) : (
+                  <>Pagar com cartão <ChevronRight className="ml-1 h-4 w-4" /></>
+                )
               ) : (
                 `Confirmar pedido · ${formatBRL(total)}`
               )}
@@ -571,7 +615,11 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
 
             {!settings.isLoggedIn && (
               <p className="text-center text-xs text-muted-foreground">
-                <Link href="/login" className="text-primary hover:underline">Faça login</Link> para finalizar o pedido.
+                Pedindo como convidado.{" "}
+                <Link href={`/login?redirect=/${settings.restaurantSlug}/checkout`} className="text-primary hover:underline">
+                  Entrar na conta
+                </Link>{" "}
+                para salvar endereços e histórico.
               </p>
             )}
           </CardContent>

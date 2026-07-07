@@ -179,7 +179,7 @@ export function ProductAddDialog({
       restaurantSlug
     );
 
-    toast.success(`${product.name} adicionado ao carrinho`);
+    toast.success("Item adicionado");
     onOpenChange(false);
   }
 

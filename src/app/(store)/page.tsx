@@ -1,6 +1,7 @@
 import {
   listActiveRestaurants,
   searchMarketplaceProducts,
+  getFeaturedProducts,
 } from "@/features/catalog/queries-marketplace";
 import { MarketplaceContent } from "@/features/catalog/components/marketplace-content";
 
@@ -12,11 +13,12 @@ export default async function MarketplacePage({ searchParams }: Props) {
   const { busca } = await searchParams;
   const initialQuery = busca?.trim() ?? "";
 
-  const [restaurants, productHits] = await Promise.all([
+  const [restaurants, productHits, featuredProducts] = await Promise.all([
     listActiveRestaurants(),
     initialQuery.length >= 2
       ? searchMarketplaceProducts(initialQuery)
       : Promise.resolve([]),
+    getFeaturedProducts(8),
   ]);
 
   return (
@@ -24,6 +26,7 @@ export default async function MarketplacePage({ searchParams }: Props) {
       restaurants={restaurants}
       initialQuery={initialQuery}
       initialProductHits={productHits}
+      featuredProducts={featuredProducts}
     />
   );
 }

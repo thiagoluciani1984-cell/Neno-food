@@ -60,6 +60,18 @@ export function SignupForm() {
 
       <SubmitButton />
 
+      <p className="text-center text-xs text-muted-foreground">
+        Ao criar conta, você concorda com os{" "}
+        <Link href="/terms" className="text-primary hover:underline">
+          Termos de Uso
+        </Link>{" "}
+        e a{" "}
+        <Link href="/privacy" className="text-primary hover:underline">
+          Política de Privacidade
+        </Link>
+        .
+      </p>
+
       <p className="text-center text-sm text-muted-foreground">
         Já tem conta?{" "}
         <Link href="/login" className="font-medium text-primary hover:underline">

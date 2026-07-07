@@ -1,26 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  CheckCircle2,
+  ChefHat,
+  Home,
+  Loader2,
+  Package,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import { createClient } from "@/infra/supabase/client";
 import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
+import { timelineLineMotion, timelineStepMotion } from "@/lib/motion/nenos-motion";
 import type { OrderStatus, OrderType } from "@/types/database.types";
+import { cn } from "@/lib/utils";
 
-const DELIVERY_STEPS: OrderStatus[] = [
-  "received",
-  "confirmed",
-  "preparing",
-  "ready",
-  "out_for_delivery",
-  "delivered",
+const DELIVERY_STEPS: { status: OrderStatus; label: string; icon: typeof ChefHat }[] = [
+  { status: "received", label: "Confirmado", icon: CheckCircle2 },
+  { status: "preparing", label: "Preparando", icon: ChefHat },
+  { status: "ready", label: "Pronto", icon: Package },
+  { status: "out_for_delivery", label: "A caminho", icon: Truck },
+  { status: "delivered", label: "Entregue", icon: Home },
 ];
 
-const PICKUP_STEPS: OrderStatus[] = [
-  "received",
-  "confirmed",
-  "preparing",
-  "ready",
-  "delivered",
+const PICKUP_STEPS: { status: OrderStatus; label: string; icon: typeof ChefHat }[] = [
+  { status: "received", label: "Confirmado", icon: CheckCircle2 },
+  { status: "preparing", label: "Preparando", icon: ChefHat },
+  { status: "ready", label: "Pronto", icon: Package },
+  { status: "delivered", label: "Retirado", icon: Home },
 ];
 
 export function OrderTracker({
@@ -48,12 +57,10 @@ export function OrderTracker({
           filter: `id=eq.${orderId}`,
         },
         (payload) => {
-          const next = (payload.new as { status: OrderStatus }).status;
-          setStatus(next);
+          setStatus((payload.new as { status: OrderStatus }).status);
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -61,10 +68,10 @@ export function OrderTracker({
 
   if (status === "cancelled") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-destructive">
+      <div className="flex items-center gap-3 rounded-3xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">
         <XCircle className="h-6 w-6" />
         <div>
-          <p className="font-semibold">Pedido cancelado</p>
+          <p className="font-bold">Pedido cancelado</p>
           <p className="text-sm">Entre em contato com o restaurante.</p>
         </div>
       </div>
@@ -73,10 +80,10 @@ export function OrderTracker({
 
   if (status === "payment_pending") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+      <div className="flex items-center gap-3 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
         <Loader2 className="h-6 w-6 animate-spin" />
         <div>
-          <p className="font-semibold">{ORDER_STATUS_LABEL.payment_pending}</p>
+          <p className="font-bold">{ORDER_STATUS_LABEL.payment_pending}</p>
           <p className="text-sm text-amber-800/80">
             Assim que o pagamento for confirmado, o restaurante receberá seu pedido.
           </p>
@@ -85,43 +92,67 @@ export function OrderTracker({
     );
   }
 
-  const currentIndex = trackSteps.indexOf(status);
+  const rawIndex = trackSteps.findIndex((s) => s.status === status);
+  const activeIndex =
+    rawIndex >= 0 ? rawIndex : status === "confirmed" ? 0 : 0;
 
   return (
-    <div className="space-y-1">
-      {trackSteps.map((step, i) => {
-        const done = currentIndex >= 0 && i <= currentIndex;
-        const active = i === currentIndex;
-        return (
-          <div key={step} className="flex items-center gap-3 py-2">
-            {done ? (
-              <CheckCircle2 className="h-6 w-6 text-primary" />
-            ) : (
-              <Circle className="h-6 w-6 text-muted-foreground/40" />
-            )}
-            <span
-              className={
-                active
-                  ? "font-semibold text-primary"
-                  : done
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-              }
-            >
-              {step === "delivered" && orderType === "pickup"
-                ? "Retirado"
-                : ORDER_STATUS_LABEL[step]}
-            </span>
-          </div>
-        );
-      })}
-      {status === "delivered" && (
-        <p className="pt-2 text-sm text-primary">
-          {orderType === "pickup"
-            ? "Pedido retirado. Bom apetite!"
-            : "Pedido entregue. Bom apetite!"}
-        </p>
-      )}
+    <div className="overflow-x-auto rounded-3xl border border-orange-100 bg-white p-5 shadow-sm scrollbar-hide">
+      <div className="flex min-w-[520px] items-start justify-between gap-1">
+        {trackSteps.map((step, i) => {
+          const isActive = i === activeIndex;
+          const isCompleted = i < activeIndex;
+          const Icon = step.icon;
+          const label = ORDER_STATUS_LABEL[step.status] ?? step.label;
+
+          return (
+            <div key={`${step.status}-${i}`} className="flex flex-1 flex-col items-center">
+              <div className="relative flex w-full items-center justify-center">
+                {i > 0 && (
+                  <div className="absolute right-1/2 top-6 h-1 w-full -translate-y-1/2 rounded-full bg-orange-100">
+                    <motion.div
+                      className="h-full w-full origin-left rounded-full bg-primary"
+                      variants={timelineLineMotion}
+                      initial="inactive"
+                      animate={i <= activeIndex ? "active" : "inactive"}
+                    />
+                  </div>
+                )}
+                <motion.div
+                  variants={timelineStepMotion}
+                  animate={isActive ? "active" : isCompleted ? "completed" : "inactive"}
+                  className="relative z-10 flex flex-col items-center gap-2"
+                >
+                  <div
+                    className={cn(
+                      "flex h-12 w-12 items-center justify-center rounded-full border-2",
+                      isActive &&
+                        "border-primary bg-white text-primary shadow-md shadow-primary/25",
+                      isCompleted && "border-primary bg-primary text-white",
+                      !isActive &&
+                        !isCompleted &&
+                        "border-orange-100 bg-orange-50 text-muted-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <span
+                    className={cn(
+                      "max-w-[72px] text-center text-xs font-medium leading-tight",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}
+                  >
+                    {label}
+                  </span>
+                </motion.div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-center text-sm font-semibold text-primary">
+        {ORDER_STATUS_LABEL[status]}
+      </p>
     </div>
   );
 }

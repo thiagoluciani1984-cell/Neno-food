@@ -60,6 +60,11 @@ export function LoginForm() {
           {state.error}
         </p>
       )}
+      {params.get("reset") === "success" && (
+        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+          Senha alterada com sucesso. Faça login com a nova senha.
+        </p>
+      )}
 
       <SubmitButton />
 

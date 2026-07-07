@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { Home, Search, Rss, User } from "lucide-react";
 import { StoreHeaderShell } from "@/features/catalog/components/store-header-shell";
+import { StoreBottomNav } from "@/components/shared/store-bottom-nav";
+import { StorePageMotion } from "@/components/shared/store-page-motion";
+import { Logo } from "@/components/shared/logo";
 import { siteConfig } from "@/config/site";
 
 export default function StoreLayout({
@@ -9,55 +12,46 @@ export default function StoreLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-[#f6f7f9]">
+    <div className="flex min-h-screen flex-col bg-[#FFF9F2]">
       <StoreHeaderShell />
 
-      <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      <main className="flex-1 pb-24 md:pb-0">
+        <StorePageMotion>{children}</StorePageMotion>
+      </main>
 
-      {/* Footer — apenas desktop */}
-      <footer className="hidden border-t bg-white py-8 md:block">
-        <div className="container flex flex-col items-center gap-3 text-center">
-          <div className="flex items-center gap-1.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-base">🍔</span>
-            <span className="text-lg font-extrabold text-primary">nenos</span>
-            <span className="text-lg font-bold" style={{ color: "#FFB300" }}>food</span>
+      <footer className="hidden border-t border-orange-100 bg-white py-10 md:block">
+        <div className="container flex flex-col items-center gap-4 text-center">
+          <Logo size="lg" />
+          <p className="max-w-md text-sm text-muted-foreground">
+            {siteConfig.description}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {["Entrega rápida", "Restaurantes locais", "PIX e cartão"].map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-xs font-semibold text-primary"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground/70">
             {siteConfig.tagline} · © {new Date().getFullYear()} Nenos Food
           </p>
-          <p className="text-xs text-muted-foreground/60">
-            Seu app de delivery favorito ♥
-          </p>
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
+            <Link href="/privacy" className="hover:text-primary hover:underline">
+              Privacidade
+            </Link>
+            <Link href="/terms" className="hover:text-primary hover:underline">
+              Termos de Uso
+            </Link>
+          </div>
         </div>
       </footer>
 
-      {/* Bottom nav — apenas mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-white/95 backdrop-blur md:hidden">
-        <BottomNavItem href="/" icon={<Home className="h-5 w-5" />} label="Início" />
-        <BottomNavItem href="/?busca=1" icon={<Search className="h-5 w-5" />} label="Busca" />
-        <BottomNavItem href="/feed" icon={<Rss className="h-5 w-5" />} label="Feed" />
-        <BottomNavItem href="/account" icon={<User className="h-5 w-5" />} label="Conta" />
-      </nav>
+      <Suspense fallback={null}>
+        <StoreBottomNav />
+      </Suspense>
     </div>
-  );
-}
-
-function BottomNavItem({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-muted-foreground transition-colors hover:text-primary"
-    >
-      {icon}
-      <span className="text-[10px] font-medium">{label}</span>
-    </Link>
   );
 }

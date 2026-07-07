@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getActiveRestaurantId } from "@/features/auth/get-session";
 import { getReportSummary } from "@/features/reports/queries";
 import { ExportCsvButton } from "@/features/reports/components/export-csv-button";
+import { RevenueChartCard } from "@/features/dashboard/components/revenue-chart-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -165,37 +166,7 @@ export default async function ReportsPage({ searchParams }: Props) {
       </Card>
 
       {report.dailyRevenue.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Faturamento por dia</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {report.dailyRevenue.slice(-14).map((day) => (
-              <div key={day.date} className="flex items-center gap-3 text-sm">
-                <span className="w-24 shrink-0 text-muted-foreground">
-                  {new Date(day.date + "T12:00:00").toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "short",
-                  })}
-                </span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{
-                      width: `${Math.max(
-                        4,
-                        (day.revenue / Math.max(...report.dailyRevenue.map((d) => d.revenue))) * 100
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <span className="w-24 shrink-0 text-right font-medium">
-                  {formatBRL(day.revenue)}
-                </span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <RevenueChartCard data={report.dailyRevenue} />
       )}
     </div>
   );

@@ -108,7 +108,7 @@ export function SearchBar({
 
       {/* Sugestões */}
       {showSuggestions && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-2xl border bg-white shadow-xl animate-scale-in">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-2xl border bg-white shadow-xl animate-nenos-scale-in">
           {suggestions!.map((s) => (
             <button
               key={s}

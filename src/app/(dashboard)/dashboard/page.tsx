@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
-import {
-  DollarSign,
-  ShoppingBag,
-  TrendingUp,
-  Users,
-  Flame,
-} from "lucide-react";
 import { getActiveRestaurantId } from "@/features/auth/get-session";
 import { getDashboardMetrics } from "@/features/dashboard/queries";
+import { getReportSummary } from "@/features/reports/queries";
+import { DashboardKpiGrid } from "@/features/dashboard/components/dashboard-kpi-grid";
+import { RevenueChartCard } from "@/features/dashboard/components/revenue-chart-card";
+import type { KpiData } from "@/features/dashboard/components/kpi-card";
+import { OrdersTable } from "@/features/orders/components/orders-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/money";
-import {
-  ORDER_STATUS_LABEL,
-  ORDER_STATUS_COLOR,
-} from "@/core/domain/value-objects/order-status";
 
 export const metadata: Metadata = { title: "Visão geral" };
 
@@ -24,37 +18,45 @@ export default async function DashboardHome() {
     return <p className="text-muted-foreground">Nenhum restaurante encontrado.</p>;
   }
 
-  const m = await getDashboardMetrics(restaurantId);
+  const [m, report] = await Promise.all([
+    getDashboardMetrics(restaurantId),
+    getReportSummary(restaurantId, 14),
+  ]);
 
-  const kpis = [
+  const kpis: KpiData[] = [
     {
+      id: "orders-today",
       label: "Pedidos hoje",
       value: m.ordersToday.toString(),
-      icon: ShoppingBag,
+      icon: "orders",
       tint: "text-blue-600 bg-blue-50",
     },
     {
+      id: "revenue-today",
       label: "Faturamento hoje",
       value: formatBRL(m.revenueTodayCents),
-      icon: DollarSign,
+      icon: "revenue",
       tint: "text-green-600 bg-green-50",
     },
     {
+      id: "avg-ticket",
       label: "Ticket médio",
       value: formatBRL(m.avgTicketCents),
-      icon: TrendingUp,
+      icon: "ticket",
       tint: "text-amber-600 bg-amber-50",
     },
     {
+      id: "in-progress",
       label: "Em andamento",
       value: m.inProgress.toString(),
-      icon: Flame,
+      icon: "in-progress",
       tint: "text-orange-600 bg-orange-50",
     },
     {
+      id: "active-customers",
       label: "Clientes ativos hoje",
       value: m.activeCustomers.toString(),
-      icon: Users,
+      icon: "customers",
       tint: "text-purple-600 bg-purple-50",
     },
   ];
@@ -62,56 +64,34 @@ export default async function DashboardHome() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Visão geral</h1>
+        <h1 className="text-2xl font-extrabold">
+          Bem-vindo de volta! <span className="inline-block animate-nenos-soft-float">👋</span>
+        </h1>
         <p className="text-sm text-muted-foreground">
           Acompanhe a operação do seu restaurante em tempo real.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card key={kpi.label}>
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className={`rounded-lg p-2.5 ${kpi.tint}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                  <p className="text-xl font-bold">{kpi.value}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <DashboardKpiGrid kpis={kpis} />
+
+      <RevenueChartCard data={report.dailyRevenue} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Pedidos recentes</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {m.recentOrders.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum pedido ainda.</p>
-            )}
-            {m.recentOrders.map((o) => (
-              <div key={o.id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">#{o.order_number}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {o.customer_name ?? "Cliente"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className={ORDER_STATUS_COLOR[o.status]}>
-                    {ORDER_STATUS_LABEL[o.status]}
-                  </Badge>
-                  <span className="font-semibold">{formatBRL(o.total_cents)}</span>
-                </div>
-              </div>
-            ))}
+          <CardContent>
+            <OrdersTable
+              orders={m.recentOrders.map((o) => ({
+                id: o.id,
+                order_number: o.order_number,
+                customer_name: o.customer_name,
+                status: o.status,
+                total_cents: o.total_cents,
+                created_at: o.created_at,
+              }))}
+            />
           </CardContent>
         </Card>
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { staggerContainer, feedPostMotion } from "@/lib/motion/nenos-motion";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "./post-card";
 import { fetchMorePostsAction } from "../actions";
@@ -35,11 +37,18 @@ export function FeedList({ initialPosts }: FeedListProps) {
 
   return (
     <>
-      <div className="space-y-4">
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        className="space-y-4"
+      >
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <motion.div key={post.id} variants={feedPostMotion}>
+            <PostCard post={post} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {hasMore && (
         <div className="mt-6 flex justify-center">

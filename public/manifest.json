@@ -4,8 +4,8 @@
   "description": "Peça, descubra e acompanhe os restaurantes da sua cidade.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#E53935",
-  "theme_color": "#E53935",
+  "background_color": "#FFF9F2",
+  "theme_color": "#F97316",
   "orientation": "portrait-primary",
   "icons": [
     {

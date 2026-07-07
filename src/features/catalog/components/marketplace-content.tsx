@@ -4,36 +4,53 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  cardItem,
+  homepageOrchestrator,
+  homepageSection,
+  mobileCardItem,
+  promoBannerMotion,
+  slideUpMotion,
+  staggerContainer,
+} from "@/lib/motion/nenos-motion";
+import { useNenosVariants } from "@/lib/motion/use-nenos-motion";
 import {
   Bike,
   Clock,
   Coffee,
+  Heart,
   IceCreamBowl,
   Pizza,
-  Search,
+  Plus,
   ShoppingBasket,
   Soup,
-  Sparkles,
   Star,
   Tags,
   UtensilsCrossed,
 } from "lucide-react";
 import { formatBRL } from "@/lib/money";
+import { MarketplaceSearchBar } from "@/features/catalog/components/store-header";
+import {
+  marketplacePromos,
+  PromoBanner,
+  PromoBannerDots,
+} from "@/features/catalog/components/promo-banner";
 import type {
   MarketplaceProductHit,
   RestaurantCard,
 } from "@/features/catalog/queries-marketplace";
 
 const CATEGORIES = [
-  { label: "Hamburguer", icon: UtensilsCrossed, filter: "hamburguer" },
+  { label: "Todos", icon: UtensilsCrossed, filter: null },
+  { label: "Burger", icon: UtensilsCrossed, filter: "hamburguer" },
   { label: "Pizza", icon: Pizza, filter: "pizza" },
   { label: "Bebidas", icon: Coffee, filter: "bebidas" },
-  { label: "Sobremesas", icon: IceCreamBowl, filter: "sobremesas" },
-  { label: "Promocoes", icon: Tags, filter: "promocoes" },
+  { label: "Doces", icon: IceCreamBowl, filter: "sobremesas" },
+  { label: "Promo", icon: Tags, filter: "promocoes" },
   { label: "Lanches", icon: Soup, filter: "lanches" },
-  { label: "Pratos", icon: UtensilsCrossed, filter: "pratos" },
   { label: "Mercado", icon: ShoppingBasket, filter: "mercado" },
-];
+] as const;
 
 const QUICK_FILTERS = ["Aberto agora", "Entrega gratis", "Mais pedidos"] as const;
 type QuickFilter = (typeof QUICK_FILTERS)[number];
@@ -42,446 +59,410 @@ export function MarketplaceContent({
   restaurants,
   initialQuery = "",
   initialProductHits = [],
+  featuredProducts = [],
 }: {
   restaurants: RestaurantCard[];
   initialQuery?: string;
   initialProductHits?: MarketplaceProductHit[];
+  featuredProducts?: MarketplaceProductHit[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter | null>(
-    null
-  );
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
 
-  useEffect(() => {
-    setQuery(initialQuery);
-  }, [initialQuery]);
+  useEffect(() => setQuery(initialQuery), [initialQuery]);
 
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed === initialQuery.trim()) return;
-
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams();
       if (trimmed.length >= 2) params.set("busca", trimmed);
       const qs = params.toString();
       router.replace(qs ? `/?${qs}` : "/");
     }, 400);
-
     return () => window.clearTimeout(timer);
   }, [query, initialQuery, router]);
 
+  useEffect(() => {
+    const t = window.setInterval(
+      () => setActiveSlide((s) => (s + 1) % marketplacePromos.length),
+      5000
+    );
+    return () => window.clearInterval(t);
+  }, []);
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-
     let list = restaurants.filter(({ restaurant, settings }) => {
       const cuisine = restaurant.cuisine ?? "";
       const matchesQuery =
         !normalizedQuery ||
         restaurant.name.toLowerCase().includes(normalizedQuery) ||
         cuisine.toLowerCase().includes(normalizedQuery);
-
       const matchesCategory =
         !activeCategory ||
         cuisine.toLowerCase().includes(activeCategory) ||
         restaurant.name.toLowerCase().includes(activeCategory);
-
       const matchesQuickFilter =
         !activeQuickFilter ||
         (activeQuickFilter === "Aberto agora" && settings?.is_open === true) ||
-        (activeQuickFilter === "Entrega gratis" &&
-          (settings?.delivery_fee_cents ?? 0) === 0) ||
+        (activeQuickFilter === "Entrega gratis" && (settings?.delivery_fee_cents ?? 0) === 0) ||
         activeQuickFilter === "Mais pedidos";
-
       return matchesQuery && matchesCategory && matchesQuickFilter;
     });
-
     if (activeQuickFilter === "Mais pedidos") {
       list = [...list].sort(
         (a, b) => (b.restaurant.total_orders ?? 0) - (a.restaurant.total_orders ?? 0)
       );
     }
-
     return list;
   }, [restaurants, query, activeCategory, activeQuickFilter]);
 
-  const featuredRestaurant = filtered[0];
+  const searchVariants = useNenosVariants(slideUpMotion);
+  const sectionVariants = useNenosVariants(homepageSection);
+  const orchestratorVariants = useNenosVariants(homepageOrchestrator);
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-foreground">
-      <section className="border-b bg-white">
-        <div className="container grid gap-8 py-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-10">
-          <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-[#fff8e1] px-3 py-1 text-xs font-semibold text-[#8a5a00]">
-              <Sparkles className="h-3.5 w-3.5" />
-              Restaurantes selecionados para hoje
-            </div>
+    <div className="min-h-screen bg-[#FFF9F2] pb-4">
+      <motion.div
+        variants={orchestratorVariants}
+        initial="initial"
+        animate="animate"
+        className="container space-y-6 py-4 sm:py-6"
+      >
+        <motion.div variants={searchVariants}>
+          <MarketplaceSearchBar value={query} onChange={setQuery} />
+        </motion.div>
 
-            <h1 className="text-3xl font-extrabold leading-tight tracking-normal text-[#1f1f1f] sm:text-4xl lg:text-5xl">
-              Comida boa, sem espera e com cara de app grande.
-            </h1>
-
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Encontre restaurantes, ofertas e pratos favoritos em uma vitrine mais limpa, rapida e facil de navegar.
-            </p>
-
-            <div className="mt-6 rounded-lg border bg-white p-2 shadow-sm">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar restaurante, prato ou categoria"
-                  className="h-12 w-full rounded-md border-0 bg-[#f6f7f9] pl-11 pr-4 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {QUICK_FILTERS.map((item) => {
-                const active = activeQuickFilter === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() =>
-                      setActiveQuickFilter(active ? null : item)
-                    }
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "bg-white text-muted-foreground hover:border-primary/40 hover:text-primary"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="relative hidden min-h-[320px] overflow-hidden rounded-lg border bg-[#1f1f1f] shadow-sm lg:block">
-            {featuredRestaurant?.restaurant.cover_url ? (
-              <Image
-                src={featuredRestaurant.restaurant.cover_url}
-                alt={featuredRestaurant.restaurant.name}
-                fill
-                priority
-                sizes="520px"
-                className="object-cover opacity-85"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,179,0,0.28),transparent_28%),linear-gradient(135deg,#242424,#111)]" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                Destaque da vitrine
-              </p>
-              <h2 className="text-2xl font-bold">
-                {featuredRestaurant?.restaurant.name ?? "Nenos Food"}
-              </h2>
-              <p className="mt-2 max-w-sm text-sm text-white/75">
-                {featuredRestaurant?.restaurant.description ??
-                  "Uma experiencia de delivery moderna, direta e pronta para vender."}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="container max-w-6xl space-y-8 py-6">
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground">Categorias</h2>
-            <button
-              type="button"
-              className="text-xs font-semibold text-primary hover:underline"
-              onClick={() => setActiveCategory(null)}
+        {/* Banner promo */}
+        <motion.section variants={sectionVariants}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeSlide}
+              variants={promoBannerMotion}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="rounded-3xl bg-nenos-gradient shadow-orange overflow-hidden"
             >
-              {activeCategory ? "Limpar filtro" : "Ver todas"}
-            </button>
-          </div>
+              <PromoBanner promo={marketplacePromos[activeSlide]} />
+            </motion.div>
+          </AnimatePresence>
+          <PromoBannerDots
+            count={marketplacePromos.length}
+            active={activeSlide}
+            onSelect={setActiveSlide}
+          />
+        </motion.section>
 
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+        {/* Filtros rápidos */}
+        <motion.div variants={sectionVariants} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {QUICK_FILTERS.map((item) => {
+            const active = activeQuickFilter === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setActiveQuickFilter(active ? null : item)}
+                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                  active
+                    ? "bg-primary text-white shadow-md shadow-primary/25"
+                    : "border border-orange-100 bg-white text-muted-foreground"
+                }`}
+              >
+                {item}
+              </button>
+            );
+          })}
+        </motion.div>
+
+        {/* Categorias */}
+        <motion.section variants={sectionVariants}>
+          <h2 className="mb-3 text-base font-extrabold text-foreground">Categorias</h2>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"
+          >
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.filter;
-
               return (
-                <button
-                  key={cat.filter}
+                <motion.button
+                  key={cat.label}
                   type="button"
-                  onClick={() =>
-                    setActiveCategory(isActive ? null : cat.filter)
-                  }
-                  className={`flex min-h-[86px] flex-col items-center justify-center gap-2 rounded-lg border bg-white px-2 py-3 text-center transition-all ${
-                    isActive
-                      ? "border-primary bg-primary/5 text-primary shadow-sm"
-                      : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                  }`}
+                  variants={mobileCardItem}
+                  onClick={() => setActiveCategory(isActive ? null : cat.filter)}
+                  className="flex w-[72px] shrink-0 flex-col items-center gap-2"
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[11px] font-semibold leading-tight">
+                  <span
+                    className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 transition-all ${
+                      isActive
+                        ? "border-primary bg-primary text-white shadow-md shadow-primary/25"
+                        : "border-orange-100 bg-white text-primary"
+                    }`}
+                  >
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <span
+                    className={`text-center text-[11px] font-bold leading-tight ${
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
                     {cat.label}
                   </span>
-                </button>
+                </motion.button>
               );
             })}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
 
-        <section className="grid gap-3 md:grid-cols-2">
-          <PromoPanel
-            title="Combo do dia"
-            subtitle="Selecao rapida para pedir sem pensar muito."
-            tone="red"
-          />
-          <PromoPanel
-            title="Entrega inteligente"
-            subtitle="Veja restaurantes com frete competitivo e preparo agil."
-            tone="yellow"
-          />
-        </section>
-
+        {/* Resultados de busca */}
         {initialQuery.length >= 2 && (
-          <section>
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-foreground">
-                Pratos ({initialProductHits.length})
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Resultados para &quot;{initialQuery}&quot;
-              </p>
-            </div>
-
-            {initialProductHits.length === 0 ? (
-              <div className="rounded-lg border bg-white px-4 py-8 text-center text-sm text-muted-foreground">
-                Nenhum prato encontrado com esse termo.
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {initialProductHits.map(({ product, restaurant }) => (
-                  <ProductHitCard
-                    key={product.id}
-                    product={product}
-                    restaurant={restaurant}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+          <motion.div variants={sectionVariants}>
+            <SearchResults query={initialQuery} hits={initialProductHits} />
+          </motion.div>
         )}
 
-        <section>
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">
-                {activeCategory || query
-                  ? `Resultados (${filtered.length})`
-                  : "Restaurantes perto de voce"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Compare tempo, frete e especialidade em poucos segundos.
-              </p>
+        {/* Restaurantes populares — scroll horizontal */}
+        {!initialQuery && filtered.length > 0 && (
+          <motion.section variants={sectionVariants}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-extrabold">Restaurantes populares</h2>
+              <Link href="/?busca=1" className="text-xs font-bold text-primary">
+                Ver todos
+              </Link>
             </div>
-          </div>
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+              className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+            >
+              {filtered.map((card) => (
+                <motion.div key={card.restaurant.id} variants={mobileCardItem} className="shrink-0">
+                  <PopularRestaurantCard {...card} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.section>
+        )}
 
+        {/* Destaques para você */}
+        {!initialQuery && featuredProducts.length > 0 && (
+          <motion.section variants={sectionVariants}>
+            <h2 className="mb-3 text-base font-extrabold">Destaques para você</h2>
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+              className="space-y-4"
+            >
+              {featuredProducts.map((hit) => (
+                <motion.div key={hit.product.id} variants={mobileCardItem}>
+                  <FeaturedProductCard {...hit} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.section>
+        )}
+
+        {/* Grid completo */}
+        <motion.section variants={sectionVariants}>
+          <h2 className="mb-3 text-base font-extrabold">
+            {activeCategory || query ? `Resultados (${filtered.length})` : "Todos os restaurantes"}
+          </h2>
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-lg border bg-white py-16 text-center">
-              <UtensilsCrossed className="h-10 w-10 text-muted-foreground/40" />
-              <p className="font-semibold text-muted-foreground">
-                Nenhum restaurante encontrado
-              </p>
-              <button
-                type="button"
-                className="text-sm font-semibold text-primary hover:underline"
-                onClick={() => {
-                  setQuery("");
-                  setActiveCategory(null);
-                }}
-              >
-                Limpar filtros
-              </button>
+            <div className="rounded-3xl border border-orange-100 bg-white py-16 text-center">
+              <UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-primary/30" />
+              <p className="font-semibold text-muted-foreground">Nenhum restaurante encontrado</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map(({ restaurant, settings }) => (
-                <RestaurantCard
-                  key={restaurant.id}
-                  restaurant={restaurant}
-                  settings={settings}
-                />
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {filtered.map((card) => (
+                <motion.div key={card.restaurant.id} variants={cardItem}>
+                  <RestaurantGridCard {...card} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
-        </section>
-      </div>
+        </motion.section>
+      </motion.div>
     </div>
   );
 }
 
-function PromoPanel({
-  title,
-  subtitle,
-  tone,
-}: {
-  title: string;
-  subtitle: string;
-  tone: "red" | "yellow";
-}) {
-  return (
-    <div
-      className={`overflow-hidden rounded-lg border p-5 ${
-        tone === "red"
-          ? "border-primary/15 bg-primary text-white"
-          : "border-[#ffb300]/25 bg-[#fff8e1] text-[#4b3700]"
-      }`}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-75">
-        Oferta
-      </p>
-      <div className="mt-3 flex items-end justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-extrabold">{title}</h3>
-          <p className="mt-1 max-w-sm text-sm opacity-80">{subtitle}</p>
-        </div>
-        <Tags className="h-8 w-8 shrink-0 opacity-75" />
-      </div>
-    </div>
-  );
-}
-
-function ProductHitCard({
-  product,
-  restaurant,
-}: MarketplaceProductHit) {
-  const price =
-    product.promo_price_cents ?? product.price_cents;
-
-  return (
-    <Link
-      href={`/${restaurant.slug}?produto=${product.slug}`}
-      className="group flex gap-3 rounded-lg border bg-white p-3 transition-all hover:border-primary/30 hover:shadow-sm"
-    >
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.name}
-            fill
-            sizes="80px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <UtensilsCrossed className="h-8 w-8 text-primary/25" />
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-semibold text-primary">
-          {restaurant.name}
-        </p>
-        <h3 className="truncate font-bold text-foreground group-hover:text-primary">
-          {product.name}
-        </h3>
-        {product.description && (
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-            {product.description}
-          </p>
-        )}
-        <p className="mt-2 text-sm font-bold text-foreground">
-          {formatBRL(price)}
-          {product.promo_price_cents != null && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
-              {formatBRL(product.price_cents)}
-            </span>
-          )}
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function RestaurantCard({
-  restaurant,
-  settings,
-}: Pick<RestaurantCard, "restaurant" | "settings">) {
+function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
   const isOpen = settings?.is_open ?? false;
-
   return (
     <Link
       href={`/${restaurant.slug}`}
-      className="group block overflow-hidden rounded-lg border bg-white transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+      className="group w-[260px] shrink-0 overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm hover-nenos-lift"
+    >
+      <div className="relative h-36 bg-muted">
+        {restaurant.cover_url ? (
+          <Image src={restaurant.cover_url} alt={restaurant.name} fill className="object-cover" sizes="260px" />
+        ) : (
+          <div className="flex h-full items-center justify-center nenos-gradient-diagonal opacity-80" />
+        )}
+        <button
+          type="button"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-muted-foreground shadow-sm"
+          onClick={(e) => e.preventDefault()}
+          aria-label="Favoritar"
+        >
+          <Heart className="h-4 w-4" />
+        </button>
+        {restaurant.logo_url && (
+          <div className="absolute -bottom-5 left-4 h-12 w-12 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-md">
+            <Image src={restaurant.logo_url} alt="" fill className="object-cover" sizes="48px" />
+          </div>
+        )}
+      </div>
+      <div className="space-y-2 p-4 pt-7">
+        <h3 className="truncate font-extrabold group-hover:text-primary">{restaurant.name}</h3>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Star className="h-3.5 w-3.5 fill-secondary text-secondary" />
+          <span className="font-bold text-foreground">
+            {restaurant.avg_rating > 0 ? restaurant.avg_rating.toFixed(1) : "4.8"}
+          </span>
+          {settings?.avg_prep_minutes && (
+            <>
+              <span>·</span>
+              <Clock className="h-3 w-3" />
+              <span>{settings.avg_prep_minutes} min</span>
+            </>
+          )}
+          <span>·</span>
+          <span className={isOpen ? "font-semibold text-green-600" : "text-red-500"}>
+            {isOpen ? "Aberto" : "Fechado"}
+          </span>
+        </div>
+        <p className="truncate text-xs text-muted-foreground">{restaurant.cuisine}</p>
+      </div>
+    </Link>
+  );
+}
+
+function FeaturedProductCard({ product, restaurant }: MarketplaceProductHit) {
+  const price = product.promo_price_cents ?? product.price_cents;
+  return (
+    <Link
+      href={`/${restaurant.slug}?produto=${product.slug}`}
+      className="group flex gap-4 overflow-hidden rounded-3xl border border-orange-100 bg-white p-3 shadow-sm hover-nenos-lift"
+    >
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-muted">
+        {product.image_url ? (
+          <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="96px" />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-orange-50">
+            <UtensilsCrossed className="h-8 w-8 text-primary/30" />
+          </div>
+        )}
+        <span className="absolute left-1.5 top-1.5 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold text-white">
+          Destaque
+        </span>
+      </div>
+      <div className="min-w-0 flex-1 py-0.5">
+        <p className="text-xs font-bold text-primary">{restaurant.name}</p>
+        <h3 className="truncate font-extrabold group-hover:text-primary">{product.name}</h3>
+        {product.description && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{product.description}</p>
+        )}
+        <p className="mt-2 text-base font-extrabold text-primary">{formatBRL(price)}</p>
+      </div>
+      <span className="flex h-10 w-10 shrink-0 self-center items-center justify-center rounded-full bg-primary text-white shadow-orange">
+        <Plus className="h-5 w-5" />
+      </span>
+    </Link>
+  );
+}
+
+function RestaurantGridCard({ restaurant, settings }: RestaurantCard) {
+  const isOpen = settings?.is_open ?? false;
+  return (
+    <Link
+      href={`/${restaurant.slug}`}
+      className="group overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm hover-nenos-lift"
     >
       <div className="relative h-40 bg-muted">
         {restaurant.cover_url ? (
-          <Image
-            src={restaurant.cover_url}
-            alt={restaurant.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
+          <Image src={restaurant.cover_url} alt={restaurant.name} fill className="object-cover transition-transform group-hover:scale-105" sizes="33vw" />
         ) : (
-          <div className="flex h-full items-center justify-center bg-[#f1f2f4]">
+          <div className="flex h-full items-center justify-center bg-orange-50">
             <UtensilsCrossed className="h-12 w-12 text-primary/25" />
           </div>
         )}
-
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent" />
         <span
-          className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-            isOpen ? "bg-white text-green-700" : "bg-black/65 text-white"
+          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+            isOpen ? "bg-green-500 text-white" : "bg-black/60 text-white"
           }`}
         >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isOpen ? "bg-green-500" : "bg-red-400"
-            }`}
-          />
           {isOpen ? "Aberto" : "Fechado"}
         </span>
       </div>
-
-      <div className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-bold leading-tight text-foreground group-hover:text-primary">
-              {restaurant.name}
-            </h3>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {restaurant.cuisine ?? "Restaurante"}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#fff8e1] px-2 py-1 text-[#8a5a00]">
-            <Star className="h-3.5 w-3.5 fill-current" />
-            <span className="text-xs font-bold">4.8</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 border-t pt-3 text-xs text-muted-foreground">
+      <div className="space-y-2 p-4">
+        <h3 className="truncate font-extrabold group-hover:text-primary">{restaurant.name}</h3>
+        <p className="text-xs text-muted-foreground">{restaurant.cuisine}</p>
+        <div className="flex items-center gap-3 border-t border-orange-50 pt-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 font-bold text-foreground">
+            <Star className="h-3.5 w-3.5 fill-secondary text-secondary" />
+            {restaurant.avg_rating > 0 ? restaurant.avg_rating.toFixed(1) : "—"}
+          </span>
           {settings?.avg_prep_minutes && (
             <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              {settings.avg_prep_minutes}-{settings.avg_prep_minutes + 10} min
+              <Clock className="h-3.5 w-3.5" /> {settings.avg_prep_minutes} min
             </span>
           )}
-
           {settings && (
             <span className="flex items-center gap-1">
               <Bike className="h-3.5 w-3.5" />
-              {settings.delivery_fee_cents === 0
-                ? "Gratis"
-                : formatBRL(settings.delivery_fee_cents)}
+              {settings.delivery_fee_cents === 0 ? "Grátis" : formatBRL(settings.delivery_fee_cents)}
             </span>
           )}
         </div>
       </div>
     </Link>
+  );
+}
+
+function SearchResults({
+  query,
+  hits,
+}: {
+  query: string;
+  hits: MarketplaceProductHit[];
+}) {
+  return (
+    <section>
+      <h2 className="mb-3 text-base font-extrabold">Pratos ({hits.length})</h2>
+      {hits.length === 0 ? (
+        <p className="rounded-3xl border bg-white py-8 text-center text-sm text-muted-foreground">
+          Nenhum prato para &quot;{query}&quot;
+        </p>
+      ) : (
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          className="space-y-4"
+        >
+          {hits.map((hit) => (
+            <motion.div key={hit.product.id} variants={mobileCardItem}>
+              <FeaturedProductCard {...hit} />
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+    </section>
   );
 }

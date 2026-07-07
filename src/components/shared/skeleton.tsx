@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
+import { nenosClass } from "@/lib/motion/nenos-motion";
 
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-shimmer rounded-lg bg-muted", className)}
+      className={cn(nenosClass.skeleton, className)}
       {...props}
     />
   );

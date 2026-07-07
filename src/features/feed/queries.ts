@@ -17,6 +17,13 @@ export type FeedPost = {
   is_saved: boolean;
 };
 
+export type FeedStory = {
+  id: string;
+  created_at: string;
+  preview_url: string | null;
+  restaurant: { id: string; name: string; slug: string; logo_url: string | null };
+};
+
 type RawImage = { id: string; url: string; alt: string | null; sort_order: number };
 type RawJoin<T> = T | T[];
 
@@ -113,6 +120,49 @@ export async function getRestaurantFeedPosts(restaurantId: string, page = 0): Pr
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
   return attachLikeSaveStatus((data ?? []) as unknown as RawPost[], profile?.id);
+}
+
+export async function getFeedStories(): Promise<FeedStory[]> {
+  const supabase = await createClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data } = await supabase
+    .from("posts")
+    .select(
+      `id, created_at,
+      restaurant:restaurants!restaurant_id(id, name, slug, logo_url),
+      post_images(url, sort_order)`
+    )
+    .eq("type", "story")
+    .is("deleted_at", null)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false });
+
+  type RawStory = {
+    id: string;
+    created_at: string;
+    restaurant: RawJoin<{ id: string; name: string; slug: string; logo_url: string | null }>;
+    post_images: { url: string; sort_order: number }[] | null;
+  };
+
+  const seen = new Set<string>();
+  const stories: FeedStory[] = [];
+
+  for (const row of (data ?? []) as unknown as RawStory[]) {
+    const restaurant = unwrap(row.restaurant);
+    if (seen.has(restaurant.id)) continue;
+    seen.add(restaurant.id);
+
+    const images = (row.post_images ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
+    stories.push({
+      id: row.id,
+      created_at: row.created_at,
+      preview_url: images[0]?.url ?? restaurant.logo_url,
+      restaurant,
+    });
+  }
+
+  return stories;
 }
 
 export async function getSavedPostsForProfile(profileId: string): Promise<FeedPost[]> {
