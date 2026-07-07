@@ -8,24 +8,31 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatBRL } from "@/lib/money";
 import { useCart } from "@/features/cart/use-cart";
+import { formatCartItemOptions } from "@/core/domain/entities/cart";
 import { useEffect, useState } from "react";
 
 export function CartView() {
   const router = useRouter();
-  const { items, setQuantity, removeItem, subtotalCents } = useCart();
+  const { items, restaurantSlug, setQuantity, removeItem, subtotalCents } =
+    useCart();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) return null;
+
+  const checkoutHref = restaurantSlug
+    ? `/${restaurantSlug}/checkout`
+    : "/";
+  const menuHref = restaurantSlug ? `/${restaurantSlug}` : "/";
 
   if (items.length === 0) {
     return (
       <div className="container flex flex-col items-center justify-center gap-4 py-24 text-center">
         <ShoppingBag className="h-12 w-12 text-muted-foreground" />
         <h1 className="font-serif text-2xl font-bold">Seu carrinho está vazio</h1>
-        <p className="text-muted-foreground">Que tal uma lasanha artesanal?</p>
+        <p className="text-muted-foreground">Escolha algo delicioso no cardápio.</p>
         <Button asChild>
-          <Link href="/">Ver cardápio</Link>
+          <Link href={menuHref}>Ver cardápio</Link>
         </Button>
       </div>
     );
@@ -39,10 +46,15 @@ export function CartView() {
 
       <div className="space-y-3">
         {items.map((item) => (
-          <Card key={item.productId}>
+          <Card key={item.lineId}>
             <CardContent className="flex items-center gap-4 p-4">
               <div className="flex-1">
                 <p className="font-medium">{item.name}</p>
+                {item.options.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatCartItemOptions(item)}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground">
                   {formatBRL(item.unitPriceCents)}
                 </p>
@@ -53,7 +65,7 @@ export function CartView() {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setQuantity(item.productId, item.quantity - 1)}
+                  onClick={() => setQuantity(item.lineId, item.quantity - 1)}
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
@@ -62,7 +74,7 @@ export function CartView() {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                  onClick={() => setQuantity(item.lineId, item.quantity + 1)}
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -76,7 +88,7 @@ export function CartView() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive"
-                onClick={() => removeItem(item.productId)}
+                onClick={() => removeItem(item.lineId)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -95,11 +107,15 @@ export function CartView() {
             Taxa de entrega e descontos são calculados no checkout.
           </p>
           <Separator />
-          <Button className="w-full" size="lg" onClick={() => router.push("/checkout")}>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => router.push(checkoutHref)}
+          >
             Finalizar pedido · {formatBRL(subtotal)}
           </Button>
           <Button asChild variant="ghost" className="w-full">
-            <Link href="/">Continuar comprando</Link>
+            <Link href={menuHref}>Continuar comprando</Link>
           </Button>
         </CardContent>
       </Card>

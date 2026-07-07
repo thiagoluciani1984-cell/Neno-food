@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Bike } from "lucide-react";
-import { getActiveRestaurantId } from "@/features/auth/get-session";
 import { createClient } from "@/infra/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,32 +12,40 @@ const STATUS_LABEL = {
   busy: "Em entrega",
 } as const;
 
-export default async function DeliveryPage() {
-  const restaurantId = await getActiveRestaurantId();
-  if (!restaurantId) {
-    return <p className="text-muted-foreground">Nenhum restaurante encontrado.</p>;
-  }
+const APPROVAL_LABEL = {
+  pending: "Pendente",
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+} as const;
 
+export default async function DeliveryPage() {
   const supabase = await createClient();
   const { data: drivers } = await supabase
     .from("drivers")
-    .select("*, profiles(full_name, phone)")
-    .eq("restaurant_id", restaurantId);
+    .select("id, status, approval_status, total_deliveries, profiles(full_name, phone)")
+    .eq("approval_status", "approved")
+    .order("status");
 
   type DriverRow = {
     id: string;
     status: keyof typeof STATUS_LABEL;
-    is_approved: boolean;
+    approval_status: keyof typeof APPROVAL_LABEL;
     total_deliveries: number;
     profiles: { full_name: string; phone: string | null } | null;
   };
-  const list = (drivers ?? []) as unknown as DriverRow[];
+
+  const list = (drivers ?? []).map((d) => {
+    const profile = Array.isArray(d.profiles) ? d.profiles[0] : d.profiles;
+    return { ...d, profiles: profile } as DriverRow;
+  });
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-bold">Entregas</h1>
-        <p className="text-sm text-muted-foreground">Seus entregadores.</p>
+        <h1 className="font-serif text-2xl font-bold">Entregadores</h1>
+        <p className="text-sm text-muted-foreground">
+          Entregadores aprovados na plataforma (marketplace).
+        </p>
       </div>
 
       <div className="grid gap-3">
@@ -57,7 +64,7 @@ export default async function DeliveryPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {!d.is_approved && <Badge variant="secondary">Pendente</Badge>}
+                <Badge variant="outline">{APPROVAL_LABEL[d.approval_status]}</Badge>
                 <Badge variant="outline">{STATUS_LABEL[d.status]}</Badge>
               </div>
             </CardContent>
@@ -65,7 +72,7 @@ export default async function DeliveryPage() {
         ))}
         {list.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Nenhum entregador cadastrado.
+            Nenhum entregador aprovado no momento.
           </p>
         )}
       </div>

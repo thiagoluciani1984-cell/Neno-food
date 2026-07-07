@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { getActiveRestaurantId } from "@/features/auth/get-session";
+import { getDashboardRestaurantId } from "@/features/auth/get-session";
 import { getActiveOrders } from "@/features/orders/queries";
 import { OrdersBoard } from "@/features/orders/components/orders-board";
 
 export const metadata: Metadata = { title: "Pedidos" };
 
 export default async function OrdersPage() {
-  const restaurantId = await getActiveRestaurantId();
+  const restaurantId = await getDashboardRestaurantId();
   if (!restaurantId) {
     return <p className="text-muted-foreground">Nenhum restaurante encontrado.</p>;
   }

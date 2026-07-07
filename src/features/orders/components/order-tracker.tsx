@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 import { createClient } from "@/infra/supabase/client";
-import {
-  ORDER_STATUS_LABEL,
-  ORDER_STATUS_FLOW,
-} from "@/core/domain/value-objects/order-status";
-import type { OrderStatus } from "@/types/database.types";
+import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
+import type { OrderStatus, OrderType } from "@/types/database.types";
 
-const TRACK_STEPS: OrderStatus[] = [
+const DELIVERY_STEPS: OrderStatus[] = [
   "received",
   "confirmed",
   "preparing",
@@ -18,14 +15,25 @@ const TRACK_STEPS: OrderStatus[] = [
   "delivered",
 ];
 
+const PICKUP_STEPS: OrderStatus[] = [
+  "received",
+  "confirmed",
+  "preparing",
+  "ready",
+  "delivered",
+];
+
 export function OrderTracker({
   orderId,
   initialStatus,
+  orderType = "delivery",
 }: {
   orderId: string;
   initialStatus: OrderStatus;
+  orderType?: OrderType;
 }) {
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
+  const trackSteps = orderType === "pickup" ? PICKUP_STEPS : DELIVERY_STEPS;
 
   useEffect(() => {
     const supabase = createClient();
@@ -63,12 +71,26 @@ export function OrderTracker({
     );
   }
 
-  const currentIndex = TRACK_STEPS.indexOf(status);
+  if (status === "payment_pending") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <div>
+          <p className="font-semibold">{ORDER_STATUS_LABEL.payment_pending}</p>
+          <p className="text-sm text-amber-800/80">
+            Assim que o pagamento for confirmado, o restaurante receberá seu pedido.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentIndex = trackSteps.indexOf(status);
 
   return (
     <div className="space-y-1">
-      {TRACK_STEPS.map((step, i) => {
-        const done = i <= currentIndex;
+      {trackSteps.map((step, i) => {
+        const done = currentIndex >= 0 && i <= currentIndex;
         const active = i === currentIndex;
         return (
           <div key={step} className="flex items-center gap-3 py-2">
@@ -86,14 +108,19 @@ export function OrderTracker({
                     : "text-muted-foreground"
               }
             >
-              {ORDER_STATUS_LABEL[step]}
+              {step === "delivered" && orderType === "pickup"
+                ? "Retirado"
+                : ORDER_STATUS_LABEL[step]}
             </span>
           </div>
         );
       })}
-      {/* status final implícito */}
-      {ORDER_STATUS_FLOW[status]?.length === 0 && status === "delivered" && (
-        <p className="pt-2 text-sm text-primary">Pedido entregue. Bom apetite! 🍝</p>
+      {status === "delivered" && (
+        <p className="pt-2 text-sm text-primary">
+          {orderType === "pickup"
+            ? "Pedido retirado. Bom apetite!"
+            : "Pedido entregue. Bom apetite!"}
+        </p>
       )}
     </div>
   );

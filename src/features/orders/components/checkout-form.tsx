@@ -13,7 +13,6 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
-  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,18 +23,21 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/money";
 import { useCart } from "@/features/cart/use-cart";
+import { formatCartItemOptions } from "@/core/domain/entities/cart";
 import { createOrderAction, validateCouponAction } from "@/features/orders/actions";
+import type { Address } from "@/features/addresses/queries";
 import type { OrderType, PaymentMethod } from "@/types/database.types";
 
 const PAYMENT_CONFIG: Record<PaymentMethod, { label: string; icon: React.ElementType; description: string }> = {
   pix:    { label: "PIX",             icon: Smartphone, description: "Aprovação imediata" },
   cash:   { label: "Dinheiro",        icon: Banknote,   description: "Pague na entrega" },
   card:   { label: "Cartão",          icon: CreditCard, description: "Débito ou crédito na entrega" },
-  online: { label: "Pagar online",    icon: Landmark,   description: "MercadoPago · cartão, PIX, boleto" },
+  online: { label: "PIX online",      icon: Smartphone, description: "Pagar.me · pague agora via QR Code" },
 };
 
 interface CheckoutSettings {
   restaurantId: string;
+  restaurantSlug: string;
   deliveryFeeCents: number;
   freeDeliveryAboveCents: number | null;
   minOrderCents: number;
@@ -45,6 +47,7 @@ interface CheckoutSettings {
   defaultName: string;
   defaultPhone: string;
   isLoggedIn: boolean;
+  savedAddresses?: Address[];
 }
 
 /* ── Botão de tipo de pedido / pagamento ──────────────────────── */
@@ -80,7 +83,7 @@ function SelectionButton({
 
 export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const router = useRouter();
-  const { items, restaurantId: cartRestaurantId, subtotalCents, clear } = useCart();
+  const { items, subtotalCents, clear } = useCart();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -90,6 +93,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const [payment, setPayment] = useState<PaymentMethod>(
     settings.paymentMethods[0] ?? "pix"
   );
+  const [customerDocument, setCustomerDocument] = useState("");
   const [name, setName] = useState(settings.defaultName);
   const [phone, setPhone] = useState(settings.defaultPhone);
   const [notes, setNotes] = useState("");
@@ -102,6 +106,11 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   const [address, setAddress] = useState({
     street: "", number: "", complement: "", district: "", city: "", state: "", zip: "", reference: "",
   });
+  const defaultSavedId =
+    settings.savedAddresses?.find((a) => a.is_default)?.id ??
+    settings.savedAddresses?.[0]?.id ??
+    "new";
+  const [addressSelection, setAddressSelection] = useState<"new" | string>(defaultSavedId);
   const [cepLoading, setCepLoading] = useState(false);
   const [changeFor, setChangeFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -115,6 +124,22 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
 
   const discount = couponState.state === "valid" ? couponState.discountCents : 0;
   const total = Math.max(0, subtotal + deliveryFee - discount);
+
+  useEffect(() => {
+    if (addressSelection === "new") return;
+    const saved = settings.savedAddresses?.find((a) => a.id === addressSelection);
+    if (!saved) return;
+    setAddress({
+      street: saved.street,
+      number: saved.number,
+      complement: saved.complement ?? "",
+      district: saved.district,
+      city: saved.city,
+      state: saved.state,
+      zip: saved.zip,
+      reference: saved.reference ?? "",
+    });
+  }, [addressSelection, settings.savedAddresses]);
 
   // ── CEP auto-fill ──────────────────────────────────────────────
   async function handleCEPBlur(cep: string) {
@@ -173,7 +198,9 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
   async function handleSubmit() {
     if (!settings.isLoggedIn) {
       toast.error("Faça login para finalizar o pedido.");
-      router.push("/login?redirect=/checkout");
+      router.push(
+        `/login?redirect=/${settings.restaurantSlug}/checkout`
+      );
       return;
     }
     if (subtotal < settings.minOrderCents) {
@@ -193,6 +220,14 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
         ? Math.round(parseFloat(changeFor.replace(",", ".")) * 100)
         : undefined;
 
+    if (payment === "online") {
+      const doc = customerDocument.replace(/\D/g, "");
+      if (doc.length !== 11) {
+        toast.error("Informe um CPF válido para pagamento online.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     const result = await createOrderAction({
       restaurantId: settings.restaurantId,
@@ -200,18 +235,33 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
       paymentMethod: payment,
       customerName: name,
       customerPhone: phone,
+      customerDocument: payment === "online" ? customerDocument : undefined,
+      onlinePaymentType: payment === "online" ? "pix" : undefined,
       notes: notes || undefined,
       couponCode: couponState.state === "valid" ? coupon : undefined,
       changeForCents,
       address: type === "delivery" ? address : undefined,
-      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes })),
+      items: items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        notes: i.notes,
+        options: i.options.map((o) => ({
+          optionId: o.optionId,
+          optionItemId: o.optionItemId,
+          quantity: o.quantity,
+        })),
+      })),
     });
     setSubmitting(false);
 
     if (result.ok) {
       clear();
-      if (result.mpInitPoint) {
-        window.location.href = result.mpInitPoint;
+      if (result.paymentRedirect) {
+        if (result.paymentRedirect.startsWith("http")) {
+          window.location.href = result.paymentRedirect;
+        } else {
+          router.push(result.paymentRedirect);
+        }
       } else {
         toast.success(`Pedido #${result.orderNumber} recebido!`);
         router.push(`/order/${result.orderId}`);
@@ -234,12 +284,21 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
             </CardHeader>
             <CardContent className="space-y-2">
               {items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm">
+                <div key={item.lineId} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    <span className="mr-1.5 font-medium text-foreground">{item.quantity}×</span>
+                    <span className="mr-1.5 font-medium text-foreground">
+                      {item.quantity}×
+                    </span>
                     {item.name}
+                    {item.options.length > 0 && (
+                      <span className="block text-xs">
+                        {formatCartItemOptions(item)}
+                      </span>
+                    )}
                   </span>
-                  <span className="font-medium">{formatBRL(item.unitPriceCents * item.quantity)}</span>
+                  <span className="font-medium">
+                    {formatBRL(item.unitPriceCents * item.quantity)}
+                  </span>
                 </div>
               ))}
             </CardContent>
@@ -284,7 +343,27 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Endereço de entrega</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              {(settings.savedAddresses?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  {settings.savedAddresses!.map((saved) => (
+                    <SelectionButton
+                      key={saved.id}
+                      active={addressSelection === saved.id}
+                      onClick={() => setAddressSelection(saved.id)}
+                      label={saved.label}
+                      description={`${saved.street}, ${saved.number} — ${saved.district}`}
+                    />
+                  ))}
+                  <SelectionButton
+                    active={addressSelection === "new"}
+                    onClick={() => setAddressSelection("new")}
+                    label="Novo endereço"
+                    description="Preencher manualmente"
+                  />
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>CEP</Label>
                 <div className="relative">
@@ -326,6 +405,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
                 <Label>Ponto de referência</Label>
                 <Input value={address.reference} onChange={(e) => setAddress({ ...address, reference: e.target.value })} placeholder="Próximo ao..." />
               </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -351,6 +431,26 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
             })}
           </CardContent>
         </Card>
+
+        {payment === "online" && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">PIX online (Pagar.me)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              <Label>CPF do pagador</Label>
+              <Input
+                value={customerDocument}
+                onChange={(e) => setCustomerDocument(e.target.value)}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+              />
+              <p className="text-xs text-muted-foreground">
+                O QR Code PIX será exibido na próxima tela.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── Troco ────────────────────────────────────────────── */}
         {payment === "cash" && (
@@ -450,7 +550,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
             {/* Aviso MercadoPago */}
             {payment === "online" && (
               <div className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                Você será redirecionado para o MercadoPago para concluir o pagamento com segurança.
+                Você verá o QR Code PIX na próxima tela. O pedido é confirmado automaticamente após o pagamento.
               </div>
             )}
 
@@ -463,7 +563,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
               {submitting ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</>
               ) : payment === "online" ? (
-                <>Pagar com MercadoPago <ChevronRight className="ml-1 h-4 w-4" /></>
+                <>Gerar PIX <ChevronRight className="ml-1 h-4 w-4" /></>
               ) : (
                 `Confirmar pedido · ${formatBRL(total)}`
               )}

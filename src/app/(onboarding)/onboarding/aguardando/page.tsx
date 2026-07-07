@@ -14,10 +14,11 @@ export default async function AguardandoPage() {
     const supabase = await createClient();
     const { data } = await supabase
       .from("restaurants")
-      .select("onboarding_status")
+      .select("onboarding_status, status")
       .eq("id", profile.restaurant_id)
       .single();
     status = (data?.onboarding_status as string) ?? "in_review";
+    if (data?.status === "active") redirect("/dashboard");
   }
 
   if (status === "approved") redirect("/dashboard");

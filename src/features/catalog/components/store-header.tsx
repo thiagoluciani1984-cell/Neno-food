@@ -1,18 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, User, Bell } from "lucide-react";
+import { ShoppingBag, User } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/features/cart/use-cart";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { useEffect, useState } from "react";
+import type { Notification } from "@/types/database.types";
 
-export function StoreHeader() {
+export function StoreHeader({
+  showNotifications = false,
+  notifications = [],
+  unreadCount = 0,
+}: {
+  showNotifications?: boolean;
+  notifications?: Notification[];
+  unreadCount?: number;
+}) {
   const items = useCart((s) => s.items);
+  const restaurantSlug = useCart((s) => s.restaurantSlug);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const count = mounted ? items.reduce((s, i) => s + i.quantity, 0) : 0;
+  const cartHref = restaurantSlug ? `/${restaurantSlug}/cart` : "/cart";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-white/90 backdrop-blur-xl">
@@ -20,15 +32,20 @@ export function StoreHeader() {
         <Logo />
 
         <nav className="flex items-center gap-1">
-          {/* Notificações */}
           <Button
+            asChild
             variant="ghost"
-            size="icon"
-            className="relative rounded-full text-muted-foreground hover:bg-primary/5 hover:text-primary"
-            aria-label="Notificacoes"
+            size="sm"
+            className="hidden text-muted-foreground hover:text-primary sm:inline-flex"
           >
-            <Bell className="h-5 w-5" />
+            <Link href="/feed">Feed</Link>
           </Button>
+          {showNotifications && (
+            <NotificationBell
+              initialNotifications={notifications}
+              initialUnreadCount={unreadCount}
+            />
+          )}
 
           {/* Conta */}
           <Button
@@ -47,7 +64,7 @@ export function StoreHeader() {
             asChild
             className="relative rounded-full bg-[#1f1f1f] px-4 font-semibold text-white shadow-none hover:bg-primary"
           >
-            <Link href="/cart">
+            <Link href={cartHref}>
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Carrinho</span>
               {count > 0 && (

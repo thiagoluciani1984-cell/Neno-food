@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/features/auth/get-session";
@@ -69,6 +70,14 @@ export default async function AdminPage() {
 
         <div>
           <h2 className="mb-3 font-serif text-xl font-bold">Restaurantes</h2>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/drivers">Gerenciar entregadores →</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/moderation">Moderação de posts →</Link>
+            </Button>
+          </div>
           <div className="space-y-3">
             {list.map((r) => (
               <RestaurantRow key={r.id} restaurant={r} />

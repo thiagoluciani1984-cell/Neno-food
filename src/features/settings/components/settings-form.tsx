@@ -34,7 +34,15 @@ function realToCents(value: string): number {
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
-export function SettingsForm({ initial }: { initial: RestaurantSettings | null }) {
+export function SettingsForm({
+  initial,
+  pagarmeConfigured = false,
+  pagarmeDevMock = false,
+}: {
+  initial: RestaurantSettings | null;
+  pagarmeConfigured?: boolean;
+  pagarmeDevMock?: boolean;
+}) {
   const hours =
     (initial?.opening_hours as SettingsInput["opening_hours"]) ?? DEFAULT_HOURS;
 
@@ -56,6 +64,7 @@ export function SettingsForm({ initial }: { initial: RestaurantSettings | null }
     address_city: initial?.address_city ?? null,
     address_state: initial?.address_state ?? null,
     address_zip: initial?.address_zip ?? null,
+    pagarme_recipient_id: initial?.pagarme_recipient_id ?? null,
   });
 
   const [saving, setSaving] = useState(false);
@@ -288,6 +297,45 @@ export function SettingsForm({ initial }: { initial: RestaurantSettings | null }
                 </button>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pagar.me (split de pagamento)</CardTitle>
+          <CardDescription>
+            ID do recebedor para receber automaticamente sua parte dos pedidos online.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              pagarmeConfigured
+                ? "border-green-200 bg-green-50 text-green-800"
+                : pagarmeDevMock
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-muted bg-muted/40 text-muted-foreground"
+            }`}
+          >
+            {pagarmeConfigured
+              ? "Pagar.me conectado — PIX online ativo."
+              : pagarmeDevMock
+                ? "Modo desenvolvimento (PAGARME_DEV_MOCK) — pagamentos simulados."
+                : "Pagar.me não configurado — adicione PAGARME_SECRET_KEY no servidor."}
+          </div>
+          <div className="space-y-2">
+            <Label>Recipient ID</Label>
+          <Input
+            value={form.pagarme_recipient_id ?? ""}
+            onChange={(e) =>
+              set("pagarme_recipient_id", e.target.value.trim() || null)
+            }
+            placeholder="rp_xxxxxxxxxxxxxxxx"
+          />
+          <p className="text-xs text-muted-foreground">
+            Encontre em dashboard.pagar.me → Recebedores. Deixe vazio se ainda não configurou.
+          </p>
           </div>
         </CardContent>
       </Card>

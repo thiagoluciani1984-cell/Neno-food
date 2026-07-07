@@ -1,14 +1,34 @@
 import "server-only";
 import { createClient } from "@/infra/supabase/server";
-import type { Restaurant, RestaurantSettings } from "@/types/database.types";
+import type { Product, Restaurant, RestaurantSettings } from "@/types/database.types";
 
 export interface RestaurantCard {
   restaurant: Restaurant;
   settings: RestaurantSettings | null;
 }
 
+export interface MarketplaceProductHit {
+  product: Pick<
+    Product,
+    "id" | "name" | "slug" | "description" | "price_cents" | "promo_price_cents" | "image_url"
+  >;
+  restaurant: Pick<Restaurant, "id" | "name" | "slug" | "logo_url">;
+}
+
 const MARKETPLACE_QUERY_TIMEOUT_MS =
   process.env.NODE_ENV === "development" ? 1500 : 4000;
+
+async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), MARKETPLACE_QUERY_TIMEOUT_MS);
+  try {
+    return await fn(controller.signal);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export async function listActiveRestaurants(): Promise<RestaurantCard[]> {
   const supabase = await createClient();
@@ -65,4 +85,69 @@ export async function listActiveRestaurants(): Promise<RestaurantCard[]> {
     settings:
       settings.find((s) => s.restaurant_id === r.id) ?? null,
   }));
+}
+
+export async function searchMarketplaceProducts(
+  query: string,
+  limit = 12
+): Promise<MarketplaceProductHit[]> {
+  const term = query.trim();
+  if (term.length < 2) return [];
+
+  const safeTerm = term.replace(/[%_,]/g, " ").trim();
+  if (!safeTerm) return [];
+
+  const supabase = await createClient();
+
+  const activeIds = await withTimeout(async (signal) => {
+    const { data } = await supabase
+      .from("restaurants")
+      .select("id")
+      .eq("status", "active")
+      .abortSignal(signal);
+    return (data ?? []).map((r) => r.id);
+  });
+
+  if (!activeIds?.length) return [];
+
+  const data = await withTimeout(async (signal) => {
+    const { data: rows } = await supabase
+      .from("products")
+      .select(
+        `
+        id, name, slug, description, price_cents, promo_price_cents, image_url,
+        restaurants(id, name, slug, logo_url)
+      `
+      )
+      .in("restaurant_id", activeIds)
+      .eq("is_available", true)
+      .or(`name.ilike.%${safeTerm}%,description.ilike.%${safeTerm}%`)
+      .order("name")
+      .limit(limit)
+      .abortSignal(signal);
+
+    return rows;
+  });
+
+  if (!data) return [];
+
+  return data.map((row) => {
+    const raw = row.restaurants;
+    const restaurant = (Array.isArray(raw) ? raw[0] : raw) as Pick<
+      Restaurant,
+      "id" | "name" | "slug" | "logo_url"
+    >;
+    return {
+      product: {
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        description: row.description,
+        price_cents: row.price_cents,
+        promo_price_cents: row.promo_price_cents,
+        image_url: row.image_url,
+      },
+      restaurant,
+    };
+  });
 }

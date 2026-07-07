@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/infra/supabase/server";
-import { createAdminClient } from "@/infra/supabase/admin";
 import { getSession } from "@/features/auth/get-session";
+import { ensureDeliveryCode } from "@/features/delivery/queries";
 import { siteConfig } from "@/config/site";
 import {
   driverSignupSchema,
@@ -237,14 +237,22 @@ export async function acceptOrderAction(orderId: string): Promise<Result> {
   if (driver.status !== "available") return { error: "Você precisa estar disponível." };
 
   // Atribuir pedido atomicamente (garante que não foi pego por outro)
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("orders")
-    .update({ driver_id: driver.id, status: "out_for_delivery" })
+    .update({
+      driver_id: driver.id,
+      status: "out_for_delivery",
+      picked_up_at: new Date().toISOString(),
+    })
     .eq("id", orderId)
     .eq("status", "ready")
-    .is("driver_id", null);
+    .is("driver_id", null)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: "Pedido não disponível mais." };
+  if (error || !updated) return { error: "Pedido não disponível mais." };
+
+  await ensureDeliveryCode(orderId, supabase);
 
   // Marcar entregador como ocupado
   await supabase
@@ -258,7 +266,10 @@ export async function acceptOrderAction(orderId: string): Promise<Result> {
 
 // ─── Atualizar status da entrega ──────────────────────────────────────
 
-export async function completeDeliveryAction(orderId: string): Promise<Result> {
+export async function completeDeliveryAction(
+  orderId: string,
+  deliveryCode?: string
+): Promise<Result> {
   const { profile } = await getSession();
   if (!profile?.id) return { error: "Não autenticado." };
 
@@ -269,6 +280,25 @@ export async function completeDeliveryAction(orderId: string): Promise<Result> {
     .eq("profile_id", profile.id)
     .maybeSingle<{ id: string }>();
   if (!driver) return { error: "Perfil não encontrado." };
+
+  if (deliveryCode?.trim()) {
+    const { data: codeRow } = await supabase
+      .from("delivery_codes")
+      .select("code, confirmed_at")
+      .eq("order_id", orderId)
+      .maybeSingle<{ code: string; confirmed_at: string | null }>();
+
+    if (!codeRow) return { error: "Código de entrega não encontrado." };
+    if (codeRow.confirmed_at) return { error: "Entrega já confirmada." };
+    if (codeRow.code !== deliveryCode.trim()) {
+      return { error: "Código incorreto. Peça ao cliente o PIN de entrega." };
+    }
+
+    await supabase
+      .from("delivery_codes")
+      .update({ confirmed_at: new Date().toISOString(), confirmed_by: driver.id })
+      .eq("order_id", orderId);
+  }
 
   const now = new Date().toISOString();
   const { error } = await supabase
@@ -307,5 +337,42 @@ export async function completeDeliveryAction(orderId: string): Promise<Result> {
   }
 
   revalidatePath("/driver");
+  return { ok: true };
+}
+
+export async function reportDriverLocationAction(
+  orderId: string,
+  latitude: number,
+  longitude: number
+): Promise<Result> {
+  const { profile } = await getSession();
+  if (!profile?.id) return { error: "Não autenticado." };
+
+  const supabase = await createClient();
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("id")
+    .eq("profile_id", profile.id)
+    .maybeSingle<{ id: string }>();
+  if (!driver) return { error: "Perfil não encontrado." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("id", orderId)
+    .eq("driver_id", driver.id)
+    .eq("status", "out_for_delivery")
+    .maybeSingle();
+
+  if (!order) return { error: "Entrega não ativa." };
+
+  const { error } = await supabase.from("delivery_tracking").insert({
+    order_id: orderId,
+    driver_id: driver.id,
+    latitude,
+    longitude,
+  });
+
+  if (error) return { error: error.message };
   return { ok: true };
 }

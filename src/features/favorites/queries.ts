@@ -4,6 +4,7 @@ import { createClient } from "@/infra/supabase/server";
 export type FavoriteProduct = {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   price_cents: number;
   image_url: string | null;
@@ -30,7 +31,7 @@ export async function getCustomerFavoriteProducts(
     .from("favorites")
     .select(`
       product:products!product_id(
-        id, name, description, price_cents, image_url,
+        id, name, slug, description, price_cents, image_url,
         category:categories!category_id(
           restaurant:restaurants!restaurant_id(id, name, slug)
         )
@@ -48,6 +49,7 @@ export async function getCustomerFavoriteProducts(
     return {
       id: p?.id ?? "",
       name: p?.name ?? "",
+      slug: p?.slug ?? "",
       description: p?.description ?? null,
       price_cents: p?.price_cents ?? 0,
       image_url: p?.image_url ?? null,

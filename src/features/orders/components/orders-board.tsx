@@ -38,7 +38,7 @@ export function OrdersBoard({
     const supabase = createClient();
     const { data } = await supabase
       .from("orders")
-      .select("*, order_items(*)")
+      .select("*, order_items(*, order_item_options(*))")
       .eq("id", id)
       .single<OrderWithItems>();
     return data;
@@ -124,13 +124,26 @@ export function OrdersBoard({
 
                     <ul className="space-y-1 text-sm">
                       {order.order_items.map((item) => (
-                        <li key={item.id} className="flex justify-between">
-                          <span>
-                            {item.quantity}× {item.product_name}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {formatBRL(item.total_cents)}
-                          </span>
+                        <li key={item.id}>
+                          <div className="flex justify-between">
+                            <span>
+                              {item.quantity}× {item.product_name}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {formatBRL(item.total_cents)}
+                            </span>
+                          </div>
+                          {item.order_item_options?.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {item.order_item_options
+                                .map((o) =>
+                                  o.quantity > 1
+                                    ? `${o.option_item_name} (${o.quantity}x)`
+                                    : o.option_item_name
+                                )
+                                .join(", ")}
+                            </p>
+                          )}
                         </li>
                       ))}
                     </ul>

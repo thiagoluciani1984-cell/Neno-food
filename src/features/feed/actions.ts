@@ -107,3 +107,33 @@ export async function fetchMorePostsAction(
   const { getFeedPosts } = await import("./queries");
   return getFeedPosts(page);
 }
+
+const REPORT_REASONS = ["spam", "inappropriate", "misleading", "other"] as const;
+
+export async function reportPostAction(
+  postId: string,
+  reason: string,
+  detail?: string
+): Promise<{ ok: true } | { error: string }> {
+  const { profile } = await getSession();
+  if (!profile?.id) return { error: "Faça login para denunciar." };
+
+  if (!REPORT_REASONS.includes(reason as (typeof REPORT_REASONS)[number])) {
+    return { error: "Motivo inválido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("post_reports").insert({
+    post_id: postId,
+    reporter_id: profile.id,
+    reason,
+    detail: detail?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { error: "Você já denunciou este post." };
+    return { error: error.message };
+  }
+
+  return { ok: true };
+}

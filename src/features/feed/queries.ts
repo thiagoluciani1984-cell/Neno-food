@@ -114,3 +114,31 @@ export async function getRestaurantFeedPosts(restaurantId: string, page = 0): Pr
 
   return attachLikeSaveStatus((data ?? []) as unknown as RawPost[], profile?.id);
 }
+
+export async function getSavedPostsForProfile(profileId: string): Promise<FeedPost[]> {
+  const supabase = await createClient();
+
+  const { data: saves } = await supabase
+    .from("post_saves")
+    .select("post_id")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const postIds = (saves ?? []).map((s) => s.post_id);
+  if (!postIds.length) return [];
+
+  const { data } = await supabase
+    .from("posts")
+    .select(FEED_SELECT)
+    .in("id", postIds)
+    .is("deleted_at", null);
+
+  const posts = (data ?? []) as unknown as RawPost[];
+  const byId = new Map(posts.map((p) => [p.id, p]));
+
+  return attachLikeSaveStatus(
+    postIds.map((id) => byId.get(id)).filter(Boolean) as RawPost[],
+    profileId
+  );
+}

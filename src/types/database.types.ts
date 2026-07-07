@@ -124,6 +124,7 @@ export interface RestaurantSettings {
   avg_prep_minutes: number;
   opening_hours: Record<string, { open: string; close: string; enabled: boolean }>;
   payment_methods: PaymentMethod[];
+  pagarme_recipient_id: string | null;
   address_street: string | null;
   address_number: string | null;
   address_district: string | null;
@@ -479,6 +480,7 @@ export interface Payment {
   amount_cents: number;
   provider: string | null;
   provider_ref: string | null;
+  provider_payload: Record<string, unknown> | null;
   paid_at: string | null;
   created_at: string;
   updated_at: string;

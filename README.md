@@ -1,65 +1,40 @@
-# Di Qualità Food
+# Nenos Food (Di Qualità Food)
 
-Plataforma de **delivery e gestão para restaurantes italianos**, multi-tenant
-desde o dia 1. Primeira operação: **Luciani's Di Qualità — Lasanhas & Risotos**.
+Marketplace multi-tenant de **delivery e gestão para restaurantes**.
+Operações ativas: **Luciani's Di Qualità** e **Point da Pizza**.
 
-Construída com **Next.js 15 + TypeScript + Tailwind + ShadCN UI** no front e
-**Supabase (PostgreSQL + Auth + RLS + Storage + Realtime)** no back.
+Stack: **Next.js 16 + TypeScript + Tailwind + ShadCN UI** · **Supabase** (PostgreSQL, Auth, RLS, Storage, Realtime) · **Pagar.me** (PIX online).
 
 ---
 
 ## Stack
 
 | Camada | Tecnologia |
-|---|---|
-| Front | Next.js 15 (App Router, Server Actions), TypeScript, Tailwind, ShadCN UI |
+|--------|------------|
+| Front | Next.js 16 (App Router, Server Actions), React 19, TypeScript, Tailwind, ShadCN UI |
 | Estado | Zustand (carrinho), TanStack Query |
 | Back | Supabase: PostgreSQL, Auth, Row Level Security, Storage, Realtime |
+| Pagamentos | Pagar.me (PIX online + split marketplace) |
 | Infra | Vercel + GitHub |
-| Arquitetura | Clean Architecture (domain/application/infra) + feature slices, multi-tenant |
+| Arquitetura | Clean Architecture + feature slices, multi-tenant desde o dia 1 |
 
 ---
 
-## Arquitetura (resumo)
+## Rotas principais
 
-```
-src/
-  app/            # rotas (route groups por persona)
-    (auth)/       # login, signup, recuperação
-    (store)/      # cardápio, carrinho, checkout, conta, tracking (cliente)
-    (dashboard)/  # painel do restaurante (KPIs, cardápio, KDS, cupons...)
-    (admin)/      # console master admin
-    (driver)/     # app do entregador
-  core/           # DOMAIN + APPLICATION (regras puras, contratos)
-  features/       # vertical slices (auth, catalog, orders, cart, coupons...)
-  infra/supabase/ # clients (browser/server/admin), middleware, repos
-  components/ui/  # ShadCN
-  lib/ config/ types/
-supabase/
-  migrations/     # SQL versionado (tabelas, índices, triggers, RLS, storage)
-  seed.sql        # restaurante + cardápio inicial
-```
-
-Princípios: o domínio não conhece Supabase; **RLS é a segurança primária**
-(isolamento multi-tenant no banco); dinheiro sempre em **centavos**; preços e
-descontos **recalculados no servidor** no checkout.
-
-Personas e rotas protegidas (via `src/middleware.ts`):
-`/dashboard` (restaurant/master) · `/admin` (master) · `/driver` (driver) ·
-`/account` (autenticado).
+| Persona | Rotas | Acesso |
+|---------|-------|--------|
+| Cliente | `/`, `/[slug]`, `/cart`, `/checkout`, `/order/[id]`, `/feed`, `/account` | Público + autenticado |
+| Restaurante | `/dashboard/*` | `restaurant`, `master_admin` |
+| Master Admin | `/admin`, `/admin/drivers` | `master_admin` |
+| Entregador | `/driver`, `/driver/onboarding` | `driver` |
+| Onboarding | `/onboarding/*` | Novo restaurante |
 
 ---
 
-## Pré-requisitos
+## Início rápido
 
-- Node.js 18.18+ (recomendado 20+)
-- Conta no [Supabase](https://supabase.com) **ou** [Supabase CLI](https://supabase.com/docs/guides/cli) para ambiente local
-
----
-
-## Configuração
-
-### 1. Instalar dependências
+### 1. Dependências
 
 ```bash
 npm install
@@ -67,32 +42,21 @@ npm install
 
 ### 2. Variáveis de ambiente
 
-Copie o exemplo e preencha com as credenciais do seu projeto Supabase:
-
 ```bash
 cp .env.local.example .env.local
 ```
 
-```
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG=lucianis-di-qualita
-```
+Preencha as credenciais Supabase. Para dev sem Pagar.me, mantenha `PAGARME_DEV_MOCK=true`.
 
 ### 3. Banco de dados
 
-**Opção A — Supabase Cloud:** no SQL Editor, execute em ordem os arquivos de
-`supabase/migrations/` (0001 → 0010) e depois `supabase/seed.sql`.
-
-**Opção B — Supabase CLI (local):**
-
-```bash
-supabase start          # sobe Postgres + Studio + Auth locais
-supabase db reset       # aplica migrations e seed automaticamente
-npm run db:types        # (opcional) regenera src/types/database.types.ts
+```powershell
+# Windows PowerShell
+$env:PGPW = "sua-senha-supabase"
+npm run db:apply
 ```
+
+Detalhes: [supabase/README.md](supabase/README.md)
 
 ### 4. Rodar
 
@@ -100,56 +64,121 @@ npm run db:types        # (opcional) regenera src/types/database.types.ts
 npm run dev
 ```
 
-Acesse http://localhost:3000.
+Acesse http://localhost:3000
+
+---
+
+## Scripts
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção |
+| `npm run typecheck` | Verificação TypeScript |
+| `npm run db:build` | Gera `supabase/full_setup.sql` |
+| `npm run db:apply` | Aplica migrations 0001–0022 no Supabase |
+| `npm run db:apply:full` | Aplica `full_setup.sql` (banco vazio) |
+| `npm run db:types` | Regenera tipos TS (Supabase CLI local) |
+| `npm run db:verify` | Testa conexão Pagar.me |
+
+### Seeds (dados de exemplo)
+
+```bash
+node scripts/seed-poit-pizza.js      # Point da Pizza (41 produtos)
+node scripts/seed-pizza-options.js   # Bordas e adicionais
+node scripts/seed-poit-images.js     # Imagens Unsplash
+node scripts/cleanup-lucianis-menu.js # Limpa cardápio genérico do Luciani's
+```
 
 ---
 
 ## Primeiros acessos
 
-1. **Cliente:** cadastre-se em `/signup` (vira `customer` automaticamente) e faça um pedido.
-2. **Restaurante / Master:** crie o usuário via signup e, no Supabase, ajuste o
-   `role` em `public.profiles` para `restaurant` ou `master_admin`. Para staff de
-   restaurante, defina também `profiles.restaurant_id` com o id do Luciani's.
-3. **Entregador:** role `driver` + registro em `public.drivers`.
-
-> O trigger `handle_new_user` provisiona o `profile` (e o `customer`) no signup.
-> O `role` pode ser enviado no metadata do signup ou ajustado depois pelo admin.
+| Perfil | Como criar |
+|--------|------------|
+| **Cliente** | `/signup` — role `customer` automático |
+| **Restaurante** | `/signup/restaurant` → wizard `/onboarding` → aprovação em `/admin` |
+| **Master Admin** | Signup + alterar `profiles.role = 'master_admin'` no Supabase |
+| **Entregador** | `/signup/driver` → onboarding → aprovação em `/admin/drivers` |
 
 ---
 
-## Funcionalidades (MVP Fase 1)
+## Funcionalidades
 
-- [x] Autenticação (login, cadastro, recuperação) + controle de acesso por perfil
-- [x] Dashboard administrativo com KPIs em tempo real
-- [x] CRUD de categorias e produtos + upload de imagens (Storage)
-- [x] Cardápio online elegante (identidade italiana premium)
-- [x] Carrinho (Zustand, persistente) e checkout (delivery/retirada, cupom, pagamento)
-- [x] Cadastro de clientes + histórico de pedidos
-- [x] Recebimento de pedidos em **tempo real** (KDS) via Supabase Realtime
-- [x] Alteração de status com máquina de estados (Recebido → ... → Entregue)
-- [x] Cupons (percentual, fixo, frete grátis)
-- [x] Relatórios financeiros básicos (faturamento, ticket médio, formas de pagamento)
-- [x] Console Master Admin (aprovar/bloquear restaurantes, GMV)
-- [x] Área do entregador (entregas e ganhos)
+### Loja (cliente)
+- Marketplace com busca de restaurantes e produtos
+- Cardápio com opções (borda, adicionais), carrinho persistente
+- Checkout: entrega/retirada, cupom, endereços salvos
+- PIX online (Pagar.me) ou pagamento na entrega
+- Acompanhamento de pedido em tempo real + código PIN de entrega
+- Feed social, favoritos, avaliações, notificações
+
+### Dashboard (restaurante)
+- KPIs, KDS em tempo real, gestão de cardápio
+- Cupons, relatórios (7/30/90 dias), configurações
+- Posts sociais, multi-restaurante (master_admin)
+
+### Admin (plataforma)
+- Aprovar/bloquear restaurantes e entregadores
+- GMV, vincular dono por e-mail
+
+### Entregador
+- Portal online/offline, aceitar entregas
+- Confirmação por PIN, GPS tracking
+
+---
+
+## Arquitetura
+
+```
+src/
+  app/            # rotas (route groups por persona)
+  core/           # domínio + contratos (Clean Architecture)
+  features/       # vertical slices (auth, orders, catalog, driver...)
+  infra/supabase/ # clients Supabase + middleware
+  lib/            # pagamentos, utils
+supabase/
+  migrations/     # 22 migrations SQL versionadas
+  seed.sql        # dados iniciais Luciani's
+docs/
+  DEPLOY.md       # guia de deploy Vercel + Pagar.me
+```
+
+Princípios: **RLS** como segurança primária · dinheiro em **centavos** · preços **recalculados no servidor**.
 
 ---
 
 ## Modelo de dados
 
-19 tabelas com RLS: `roles`, `profiles`, `restaurants`, `restaurant_settings`,
-`categories`, `products`, `product_images`, `customers`, `addresses`, `drivers`,
-`favorites`, `reviews`, `coupons`, `coupon_usage`, `orders`, `order_items`,
-`payments`, `notifications`. Detalhes nas migrations.
+30+ tabelas com RLS, incluindo:
+
+`profiles`, `restaurants`, `restaurant_settings`, `categories`, `products`, `product_options`, `orders`, `order_items`, `order_item_options`, `payments`, `coupons`, `drivers`, `driver_vehicles`, `driver_documents`, `delivery_tracking`, `delivery_codes`, `posts`, `notifications`, `restaurant_favorites`...
+
+Detalhes: `supabase/migrations/` e [supabase/README.md](supabase/README.md).
 
 ---
 
-## Deploy (Vercel)
+## Deploy
 
-1. Suba o repositório no GitHub.
-2. Importe no Vercel, configure as mesmas variáveis de ambiente.
-3. Em produção, use a URL real em `NEXT_PUBLIC_SITE_URL` e adicione-a às
-   *Redirect URLs* do Supabase Auth.
+Guia completo: [docs/DEPLOY.md](docs/DEPLOY.md)
+
+Resumo:
+1. `npm run db:apply` no Supabase Cloud
+2. Configure env vars na Vercel
+3. Configure Auth redirect URLs + webhook Pagar.me
+4. Deploy via GitHub → Vercel
 
 ---
 
-© Di Qualità Food
+## Documentação
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| [supabase/README.md](supabase/README.md) | Banco de dados, migrations, troubleshooting |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy produção, env vars, checklist |
+| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Referência de variáveis de ambiente |
+| [.env.local.example](.env.local.example) | Template de configuração local |
+
+---
+
+© Nenos Food / Di Qualità Food

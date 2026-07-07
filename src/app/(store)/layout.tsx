@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Home, Search, ShoppingBag, User } from "lucide-react";
-import { StoreHeader } from "@/features/catalog/components/store-header";
+import { Home, Search, Rss, User } from "lucide-react";
+import { StoreHeaderShell } from "@/features/catalog/components/store-header-shell";
 import { siteConfig } from "@/config/site";
 
 export default function StoreLayout({
@@ -10,7 +10,7 @@ export default function StoreLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-[#f6f7f9]">
-      <StoreHeader />
+      <StoreHeaderShell />
 
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
 
@@ -35,8 +35,8 @@ export default function StoreLayout({
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-white/95 backdrop-blur md:hidden">
         <BottomNavItem href="/" icon={<Home className="h-5 w-5" />} label="Início" />
         <BottomNavItem href="/?busca=1" icon={<Search className="h-5 w-5" />} label="Busca" />
-        <BottomNavItem href="/account" icon={<ShoppingBag className="h-5 w-5" />} label="Pedidos" />
-        <BottomNavItem href="/account" icon={<User className="h-5 w-5" />} label="Perfil" />
+        <BottomNavItem href="/feed" icon={<Rss className="h-5 w-5" />} label="Feed" />
+        <BottomNavItem href="/account" icon={<User className="h-5 w-5" />} label="Conta" />
       </nav>
     </div>
   );

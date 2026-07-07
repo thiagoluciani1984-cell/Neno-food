@@ -12,14 +12,23 @@ import {
   ChevronRight,
   Send,
   Loader2,
+  Flag,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   toggleLikeAction,
   toggleSaveAction,
   addCommentAction,
   fetchPostCommentsAction,
+  reportPostAction,
   type PostComment,
 } from "../actions";
 import type { FeedPost } from "../queries";
@@ -245,6 +254,12 @@ export function PostCard({ post }: { post: FeedPost }) {
     }
   }
 
+  async function handleReport(reason: string) {
+    const res = await reportPostAction(post.id, reason);
+    if ("error" in res) toast.error(res.error);
+    else toast.success("Denúncia enviada. Obrigado!");
+  }
+
   return (
     <article className="overflow-hidden rounded-xl border bg-card">
       {/* Cabeçalho */}
@@ -281,6 +296,31 @@ export function PostCard({ post }: { post: FeedPost }) {
             Destaque
           </span>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Mais opções"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleReport("spam")}>
+              <Flag className="mr-2 h-4 w-4" />
+              Denunciar spam
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleReport("inappropriate")}>
+              <Flag className="mr-2 h-4 w-4" />
+              Conteúdo impróprio
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleReport("misleading")}>
+              <Flag className="mr-2 h-4 w-4" />
+              Informação falsa
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Imagens */}

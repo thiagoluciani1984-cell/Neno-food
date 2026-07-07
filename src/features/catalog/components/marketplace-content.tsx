@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Bike,
   Clock,
@@ -18,7 +19,10 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { formatBRL } from "@/lib/money";
-import type { RestaurantCard } from "@/features/catalog/queries-marketplace";
+import type {
+  MarketplaceProductHit,
+  RestaurantCard,
+} from "@/features/catalog/queries-marketplace";
 
 const CATEGORIES = [
   { label: "Hamburguer", icon: UtensilsCrossed, filter: "hamburguer" },
@@ -31,20 +35,47 @@ const CATEGORIES = [
   { label: "Mercado", icon: ShoppingBasket, filter: "mercado" },
 ];
 
-const QUICK_FILTERS = ["Aberto agora", "Entrega gratis", "Mais pedidos"];
+const QUICK_FILTERS = ["Aberto agora", "Entrega gratis", "Mais pedidos"] as const;
+type QuickFilter = (typeof QUICK_FILTERS)[number];
 
 export function MarketplaceContent({
   restaurants,
+  initialQuery = "",
+  initialProductHits = [],
 }: {
   restaurants: RestaurantCard[];
+  initialQuery?: string;
+  initialProductHits?: MarketplaceProductHit[];
 }) {
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const [query, setQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter | null>(
+    null
+  );
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed === initialQuery.trim()) return;
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (trimmed.length >= 2) params.set("busca", trimmed);
+      const qs = params.toString();
+      router.replace(qs ? `/?${qs}` : "/");
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [query, initialQuery, router]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return restaurants.filter(({ restaurant }) => {
+    let list = restaurants.filter(({ restaurant, settings }) => {
       const cuisine = restaurant.cuisine ?? "";
       const matchesQuery =
         !normalizedQuery ||
@@ -56,9 +87,24 @@ export function MarketplaceContent({
         cuisine.toLowerCase().includes(activeCategory) ||
         restaurant.name.toLowerCase().includes(activeCategory);
 
-      return matchesQuery && matchesCategory;
+      const matchesQuickFilter =
+        !activeQuickFilter ||
+        (activeQuickFilter === "Aberto agora" && settings?.is_open === true) ||
+        (activeQuickFilter === "Entrega gratis" &&
+          (settings?.delivery_fee_cents ?? 0) === 0) ||
+        activeQuickFilter === "Mais pedidos";
+
+      return matchesQuery && matchesCategory && matchesQuickFilter;
     });
-  }, [restaurants, query, activeCategory]);
+
+    if (activeQuickFilter === "Mais pedidos") {
+      list = [...list].sort(
+        (a, b) => (b.restaurant.total_orders ?? 0) - (a.restaurant.total_orders ?? 0)
+      );
+    }
+
+    return list;
+  }, [restaurants, query, activeCategory, activeQuickFilter]);
 
   const featuredRestaurant = filtered[0];
 
@@ -94,15 +140,25 @@ export function MarketplaceContent({
             </div>
 
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {QUICK_FILTERS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  className="shrink-0 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                >
-                  {item}
-                </button>
-              ))}
+              {QUICK_FILTERS.map((item) => {
+                const active = activeQuickFilter === item;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() =>
+                      setActiveQuickFilter(active ? null : item)
+                    }
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "bg-white text-muted-foreground hover:border-primary/40 hover:text-primary"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -190,6 +246,35 @@ export function MarketplaceContent({
           />
         </section>
 
+        {initialQuery.length >= 2 && (
+          <section>
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-foreground">
+                Pratos ({initialProductHits.length})
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Resultados para &quot;{initialQuery}&quot;
+              </p>
+            </div>
+
+            {initialProductHits.length === 0 ? (
+              <div className="rounded-lg border bg-white px-4 py-8 text-center text-sm text-muted-foreground">
+                Nenhum prato encontrado com esse termo.
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {initialProductHits.map(({ product, restaurant }) => (
+                  <ProductHitCard
+                    key={product.id}
+                    product={product}
+                    restaurant={restaurant}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         <section>
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
@@ -266,6 +351,59 @@ function PromoPanel({
         <Tags className="h-8 w-8 shrink-0 opacity-75" />
       </div>
     </div>
+  );
+}
+
+function ProductHitCard({
+  product,
+  restaurant,
+}: MarketplaceProductHit) {
+  const price =
+    product.promo_price_cents ?? product.price_cents;
+
+  return (
+    <Link
+      href={`/${restaurant.slug}?produto=${product.slug}`}
+      className="group flex gap-3 rounded-lg border bg-white p-3 transition-all hover:border-primary/30 hover:shadow-sm"
+    >
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            sizes="80px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <UtensilsCrossed className="h-8 w-8 text-primary/25" />
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-primary">
+          {restaurant.name}
+        </p>
+        <h3 className="truncate font-bold text-foreground group-hover:text-primary">
+          {product.name}
+        </h3>
+        {product.description && (
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+            {product.description}
+          </p>
+        )}
+        <p className="mt-2 text-sm font-bold text-foreground">
+          {formatBRL(price)}
+          {product.promo_price_cents != null && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
+              {formatBRL(product.price_cents)}
+            </span>
+          )}
+        </p>
+      </div>
+    </Link>
   );
 }
 

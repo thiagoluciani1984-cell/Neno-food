@@ -1,9 +1,16 @@
 import { z } from "zod";
 
+export const checkoutItemOptionSchema = z.object({
+  optionId: z.string().uuid(),
+  optionItemId: z.string().uuid(),
+  quantity: z.number().int().positive().default(1),
+});
+
 export const checkoutItemSchema = z.object({
   productId: z.string().uuid(),
   quantity: z.number().int().positive(),
   notes: z.string().optional(),
+  options: z.array(checkoutItemOptionSchema).optional().default([]),
 });
 
 export const checkoutSchema = z.object({
@@ -12,6 +19,8 @@ export const checkoutSchema = z.object({
   paymentMethod: z.enum(["pix", "cash", "card", "online"]),
   customerName: z.string().min(2, "Informe seu nome"),
   customerPhone: z.string().min(8, "Informe um telefone"),
+  customerDocument: z.string().optional(),
+  onlinePaymentType: z.enum(["pix", "credit_card"]).optional(),
   notes: z.string().optional(),
   couponCode: z.string().optional(),
   changeForCents: z.number().int().nonnegative().optional(),

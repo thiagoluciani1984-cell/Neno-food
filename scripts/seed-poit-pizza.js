@@ -1,9 +1,30 @@
 /* Popula o cardápio completo do Poit da Pizza extraído das imagens do iFood. */
-const { Client } = require("pg");
+const fs = require("fs");
+const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
-const ref = process.env.PROJECT_REF || "lelimqdzvwafxzvrkszj";
-const pw = process.env.PGPW;
-if (!pw) { console.error("Defina PGPW."); process.exit(1); }
+const envPath = path.join(__dirname, "..", ".env.local");
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, "utf8").replace(/\r/g, "").split("\n")) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match && !process.env[match[1].trim()]) {
+      process.env[match[1].trim()] = match[2].trim();
+    }
+  }
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !serviceKey) {
+  console.error("Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY em .env.local");
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, serviceKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const RESTAURANT_SLUG = "poit-da-pizza";
 
 /* ─── Cardápio completo ──────────────────────────────────────────────────── */
 const CATALOG = [
@@ -285,94 +306,162 @@ const CATALOG = [
   },
 ];
 
+async function ensureRestaurant() {
+  const { data: existing, error: findError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("slug", RESTAURANT_SLUG)
+    .maybeSingle();
+
+  if (findError) throw findError;
+  if (existing?.id) return existing.id;
+
+  const { data: created, error: createError } = await supabase
+    .from("restaurants")
+    .upsert(
+      {
+        name: "Poit da Pizza",
+        slug: RESTAURANT_SLUG,
+        description:
+          "As melhores pizzas artesanais da região. Massa fina, ingredientes frescos e muito sabor.",
+        cuisine: "Pizzaria",
+        status: "active",
+        phone: "(11) 90000-0001",
+      },
+      { onConflict: "slug" }
+    )
+    .select("id")
+    .single();
+
+  if (createError) throw createError;
+
+  const { error: settingsError } = await supabase.from("restaurant_settings").upsert(
+    {
+      restaurant_id: created.id,
+      is_open: true,
+      delivery_fee_cents: 599,
+      free_delivery_above_cents: 8000,
+      min_order_cents: 2500,
+      avg_prep_minutes: 35,
+      opening_hours: {
+        "0": { open: "18:00", close: "23:00", enabled: true },
+        "1": { open: "18:00", close: "23:00", enabled: true },
+        "2": { open: "18:00", close: "23:00", enabled: true },
+        "3": { open: "18:00", close: "23:00", enabled: true },
+        "4": { open: "18:00", close: "23:00", enabled: true },
+        "5": { open: "18:00", close: "00:00", enabled: true },
+        "6": { open: "18:00", close: "00:00", enabled: true },
+      },
+      payment_methods: ["pix", "cash", "card"],
+      address_city: "Maceió",
+      address_state: "AL",
+    },
+    { onConflict: "restaurant_id" }
+  );
+
+  if (settingsError) throw settingsError;
+  console.log("🏪 Restaurante criado: Poit da Pizza");
+  return created.id;
+}
+
 /* ─── Main ─────────────────────────────────────────────────────────────── */
 (async () => {
-  const client = new Client({
-    host: "aws-1-sa-east-1.pooler.supabase.com",
-    port: 5432,
-    user: `postgres.${ref}`,
-    password: pw,
-    database: "postgres",
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 20000,
-  });
-  await client.connect();
-  console.log("✅ Conectado\n");
+  console.log("🔌 Conectando via Supabase API...\n");
+  const rid = await ensureRestaurant();
 
-  // ID do restaurante
-  const { rows: [rest] } = await client.query(
-    "select id from public.restaurants where slug = 'poit-da-pizza'"
-  );
-  if (!rest) { console.error("Poit da Pizza não encontrado."); process.exit(2); }
-  const rid = rest.id;
+  const { error: restaurantError } = await supabase
+    .from("restaurants")
+    .update({
+      name: "Point da Pizza",
+      description:
+        "A Melhor Pizza do Mundo! Massa fina artesanal, ingredientes selecionados — fatiado, triturado ou inteiro. Entrega para toda Maceió.",
+      cuisine: "Pizzaria",
+    })
+    .eq("id", rid);
 
-  // Atualiza info do restaurante
-  await client.query(
-    `update public.restaurants set
-       name = 'Point da Pizza',
-       description = 'A Melhor Pizza do Mundo! Massa fina artesanal, ingredientes selecionados — fatiado, triturado ou inteiro. Entrega para toda Maceió.',
-       cuisine = 'Pizzaria'
-     where id = $1`,
-    [rid]
-  );
+  if (restaurantError) throw restaurantError;
   console.log("📝 Nome atualizado: Point da Pizza");
 
-  // Remove categorias genéricas inseridas antes
-  await client.query(
-    "delete from public.categories where restaurant_id = $1", [rid]
-  );
+  const { error: deleteProductsError } = await supabase
+    .from("products")
+    .delete()
+    .eq("restaurant_id", rid);
+  if (deleteProductsError) throw deleteProductsError;
+
+  const { error: deleteCategoriesError } = await supabase
+    .from("categories")
+    .delete()
+    .eq("restaurant_id", rid);
+  if (deleteCategoriesError) throw deleteCategoriesError;
 
   let totalProducts = 0;
   for (const { category, products } of CATALOG) {
-    // Cria categoria
-    const { rows: [cat] } = await client.query(
-      `insert into public.categories
-         (restaurant_id, name, slug, sort_order, is_active)
-       values ($1,$2,$3,$4,true)
-       on conflict (restaurant_id, slug) do update set name=excluded.name
-       returning id`,
-      [rid, category.name, category.slug, category.sort_order]
-    );
+    const { data: cat, error: categoryError } = await supabase
+      .from("categories")
+      .upsert(
+        {
+          restaurant_id: rid,
+          name: category.name,
+          slug: category.slug,
+          sort_order: category.sort_order,
+          is_active: true,
+        },
+        { onConflict: "restaurant_id,slug" }
+      )
+      .select("id")
+      .single();
 
+    if (categoryError) throw categoryError;
     console.log(`\n📂 ${category.name}`);
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
-      await client.query(
-        `insert into public.products
-           (restaurant_id, category_id, name, slug, description,
-            price_cents, promo_price_cents, is_available, is_featured, sort_order)
-         values ($1,$2,$3,$4,$5,$6,$7,true,$8,$9)
-         on conflict (restaurant_id, slug) do update
-           set name=excluded.name, description=excluded.description,
-               price_cents=excluded.price_cents,
-               promo_price_cents=excluded.promo_price_cents,
-               is_featured=excluded.is_featured,
-               category_id=excluded.category_id`,
-        [rid, cat.id, p.name, p.slug, p.description,
-         p.price_cents, p.promo_price_cents, p.is_featured, i + 1]
+      const { error: productError } = await supabase.from("products").upsert(
+        {
+          restaurant_id: rid,
+          category_id: cat.id,
+          name: p.name,
+          slug: p.slug,
+          description: p.description,
+          price_cents: p.price_cents,
+          promo_price_cents: p.promo_price_cents,
+          is_available: true,
+          is_featured: p.is_featured,
+          sort_order: i + 1,
+        },
+        { onConflict: "restaurant_id,slug" }
       );
+
+      if (productError) throw productError;
+
       const promo = p.promo_price_cents
-        ? ` (promo: R$ ${(p.promo_price_cents/100).toFixed(2)})`
+        ? ` (promo: R$ ${(p.promo_price_cents / 100).toFixed(2)})`
         : "";
-      console.log(`   ✅ ${p.name.padEnd(50)} R$ ${(p.price_cents/100).toFixed(2)}${promo}`);
+      console.log(
+        `   ✅ ${p.name.padEnd(50)} R$ ${(p.price_cents / 100).toFixed(2)}${promo}`
+      );
       totalProducts++;
     }
   }
 
-  // Atualiza configurações
-  await client.query(
-    `update public.restaurant_settings set
-       delivery_fee_cents = 0,
-       min_order_cents = 1500,
-       avg_prep_minutes = 30,
-       address_city = 'Maceió',
-       address_state = 'AL'
-     where restaurant_id = $1`,
-    [rid]
-  );
+  const { error: settingsError } = await supabase
+    .from("restaurant_settings")
+    .update({
+      delivery_fee_cents: 0,
+      min_order_cents: 1500,
+      avg_prep_minutes: 30,
+      address_city: "Maceió",
+      address_state: "AL",
+    })
+    .eq("restaurant_id", rid);
 
-  console.log(`\n🎉 Point da Pizza: ${totalProducts} produtos cadastrados em ${CATALOG.length} categorias!`);
+  if (settingsError) throw settingsError;
+
+  console.log(
+    `\n🎉 Point da Pizza: ${totalProducts} produtos cadastrados em ${CATALOG.length} categorias!`
+  );
   console.log("🏙️  Cidade: Maceió/AL | Entrega grátis | Pedido mínimo: R$ 15,00");
-  await client.end();
-})().catch(e => { console.error("ERRO:", e.message); process.exit(2); });
+})().catch((e) => {
+  console.error("ERRO:", e.message ?? e);
+  process.exit(2);
+});

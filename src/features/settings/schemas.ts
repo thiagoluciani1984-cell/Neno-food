@@ -43,6 +43,9 @@ export const settingsSchema = z.object({
   address_city: z.string().min(2, "Informe a cidade").nullable(),
   address_state: z.string().length(2, "Use a sigla do estado (ex: SP)").nullable(),
   address_zip: z.string().min(8, "Informe o CEP").nullable(),
+
+  // Pagar.me split (opcional)
+  pagarme_recipient_id: z.string().nullable().optional(),
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>;

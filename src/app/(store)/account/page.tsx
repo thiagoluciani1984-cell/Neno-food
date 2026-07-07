@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Star, Heart, MapPin, Package } from "lucide-react";
+import { Star, Heart, MapPin, Package, Bookmark } from "lucide-react";
 import { getSession } from "@/features/auth/get-session";
 import { createClient } from "@/infra/supabase/server";
 import { logoutAction } from "@/features/auth/actions";
@@ -22,14 +22,17 @@ import { getCustomerReviews } from "@/features/reviews/queries";
 import { AddressCard } from "@/features/addresses/components/address-card";
 import { AddressForm } from "@/features/addresses/components/address-form";
 import { ReviewForm } from "@/features/reviews/components/review-form";
+import { getSavedPostsForProfile } from "@/features/feed/queries";
+import { PostCard } from "@/features/feed/components/post-card";
 import type { Order } from "@/types/database.types";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
-type Tab = "pedidos" | "favoritos" | "enderecos" | "avaliacoes";
+type Tab = "pedidos" | "favoritos" | "salvos" | "enderecos" | "avaliacoes";
 const TABS: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: "pedidos", label: "Pedidos", icon: Package },
   { id: "favoritos", label: "Favoritos", icon: Heart },
+  { id: "salvos", label: "Salvos", icon: Bookmark },
   { id: "enderecos", label: "Endereços", icon: MapPin },
   { id: "avaliacoes", label: "Avaliações", icon: Star },
 ];
@@ -40,7 +43,7 @@ interface Props {
 
 export default async function AccountPage({ searchParams }: Props) {
   const { aba } = await searchParams;
-  const tab: Tab = (["pedidos", "favoritos", "enderecos", "avaliacoes"].includes(aba ?? "")
+  const tab: Tab = (["pedidos", "favoritos", "salvos", "enderecos", "avaliacoes"].includes(aba ?? "")
     ? aba
     : "pedidos") as Tab;
 
@@ -56,7 +59,8 @@ export default async function AccountPage({ searchParams }: Props) {
 
   const customerId = customer?.id;
 
-  const [orders, addresses, favProducts, favRestaurants, myReviews] = await Promise.all([
+  const [orders, addresses, favProducts, favRestaurants, myReviews, savedPosts] =
+    await Promise.all([
     tab === "pedidos" && customerId
       ? supabase
           .from("orders")
@@ -77,6 +81,9 @@ export default async function AccountPage({ searchParams }: Props) {
       : Promise.resolve([]),
     tab === "avaliacoes" && customerId
       ? getCustomerReviews(customerId)
+      : Promise.resolve([]),
+    tab === "salvos" && profile?.id
+      ? getSavedPostsForProfile(profile.id)
       : Promise.resolve([]),
   ]);
 
@@ -211,7 +218,7 @@ export default async function AccountPage({ searchParams }: Props) {
                 {favProducts.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/${p.restaurant.slug}`}
+                    href={`/${p.restaurant.slug}?produto=${p.slug}`}
                     className="flex items-center gap-3 rounded-xl border bg-white p-3 transition-colors hover:bg-accent"
                   >
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -241,6 +248,27 @@ export default async function AccountPage({ searchParams }: Props) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Posts salvos ── */}
+      {tab === "salvos" && (
+        <div className="space-y-4">
+          <h2 className="font-semibold">Posts salvos</h2>
+          {savedPosts.length === 0 ? (
+            <p className="rounded-xl border bg-white py-10 text-center text-sm text-muted-foreground">
+              Nenhum post salvo ainda.{" "}
+              <Link href="/feed" className="text-primary hover:underline">
+                Explorar feed
+              </Link>
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {savedPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

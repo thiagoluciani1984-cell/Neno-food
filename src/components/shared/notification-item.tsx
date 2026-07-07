@@ -100,16 +100,22 @@ export function NotificationItem({
 export function NotificationPanel({
   children,
   hasUnread = false,
+  onMarkAllRead,
 }: {
   children: React.ReactNode;
   hasUnread?: boolean;
+  onMarkAllRead?: () => void;
 }) {
   return (
     <div className="w-80 overflow-hidden rounded-2xl border bg-white shadow-xl">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h3 className="text-sm font-bold">Notificações</h3>
-        {hasUnread && (
-          <button type="button" className="text-xs font-medium text-primary hover:underline">
+        {hasUnread && onMarkAllRead && (
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className="text-xs font-medium text-primary hover:underline"
+          >
             Marcar todas como lidas
           </button>
         )}

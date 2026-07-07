@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getMenuBySlug } from "@/features/catalog/queries";
 import { getSession } from "@/features/auth/get-session";
+import { getCustomerAddresses } from "@/features/addresses/queries";
+import { createClient } from "@/infra/supabase/server";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
 
 export const metadata: Metadata = { title: "Checkout" };
@@ -19,11 +21,26 @@ export default async function CheckoutPage({ params }: Props) {
   if (!menu) notFound();
 
   const s = menu.settings;
+  let savedAddresses: Awaited<ReturnType<typeof getCustomerAddresses>> = [];
+
+  if (user) {
+    const supabase = await createClient();
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("profile_id", user.id)
+      .maybeSingle<{ id: string }>();
+
+    if (customer?.id) {
+      savedAddresses = await getCustomerAddresses(customer.id);
+    }
+  }
 
   return (
     <CheckoutForm
       settings={{
         restaurantId: menu.restaurant.id,
+        restaurantSlug,
         deliveryFeeCents: s?.delivery_fee_cents ?? 0,
         freeDeliveryAboveCents: s?.free_delivery_above_cents ?? null,
         minOrderCents: s?.min_order_cents ?? 0,
@@ -33,6 +50,7 @@ export default async function CheckoutPage({ params }: Props) {
         defaultName: profile?.full_name ?? "",
         defaultPhone: profile?.phone ?? "",
         isLoggedIn: !!user,
+        savedAddresses,
       }}
     />
   );

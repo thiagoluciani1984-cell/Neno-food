@@ -20,6 +20,7 @@ export default async function CheckoutPage() {
     <CheckoutForm
       settings={{
         restaurantId: menu.restaurant.id,
+        restaurantSlug: siteConfig.defaultRestaurantSlug,
         deliveryFeeCents: s?.delivery_fee_cents ?? 0,
         freeDeliveryAboveCents: s?.free_delivery_above_cents ?? null,
         minOrderCents: s?.min_order_cents ?? 0,

@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/infra/supabase/server";
 import { computeCouponDiscountCents } from "@/core/domain/entities/cart";
 import { canTransition } from "@/core/domain/value-objects/order-status";
-import { mpPreference, isSandbox } from "@/lib/mercadopago";
+import { notifyOrderStatusChange } from "@/features/notifications/lib";
+import { ensureDeliveryCode } from "@/features/delivery/queries";
+import { createPagarmeOrder, isPagarmeConfigured, isPagarmeDevMock, createMockPagarmePixOrder } from "@/lib/payments";
 import { checkoutSchema, type CheckoutInput } from "./schemas";
+import { resolveCheckoutItemOptions } from "./validate-item-options";
+import type { OptionGroupWithItems } from "@/features/catalog/queries-options";
 import type {
   Coupon,
   OrderStatus,
@@ -14,7 +18,12 @@ import type {
 } from "@/types/database.types";
 
 export type CreateOrderResult =
-  | { ok: true; orderId: string; orderNumber: number; mpInitPoint?: string }
+  | {
+      ok: true;
+      orderId: string;
+      orderNumber: number;
+      paymentRedirect?: string;
+    }
   | { ok: false; error: string };
 
 export type CouponPreview =
@@ -102,6 +111,32 @@ export async function createOrderAction(
   }
 
   const productMap = new Map(products.map((p) => [p.id, p as Product]));
+
+  const { data: optionGroupsRaw } = await supabase
+    .from("product_options")
+    .select(
+      "*, product_option_items(id, option_id, name, price_cents, is_available, sort_order, created_at, updated_at)"
+    )
+    .in("product_id", productIds);
+
+  const optionGroupsByProduct = new Map<string, OptionGroupWithItems[]>();
+  for (const group of optionGroupsRaw ?? []) {
+    const productId = group.product_id as string;
+    const list = optionGroupsByProduct.get(productId) ?? [];
+    list.push({
+      ...group,
+      product_option_items: (
+        Array.isArray(group.product_option_items)
+          ? group.product_option_items
+          : []
+      ).sort(
+        (a: { sort_order: number }, b: { sort_order: number }) =>
+          a.sort_order - b.sort_order
+      ),
+    } as OptionGroupWithItems);
+    optionGroupsByProduct.set(productId, list);
+  }
+
   let subtotal = 0;
   const orderItems: Array<{
     product_id: string;
@@ -110,24 +145,45 @@ export async function createOrderAction(
     quantity: number;
     total_cents: number;
     notes: string | null;
+    options: ReturnType<typeof resolveCheckoutItemOptions>["snapshots"];
   }> = [];
 
-  for (const item of data.items) {
-    const p = productMap.get(item.productId)!;
-    if (!p.is_available || p.restaurant_id !== data.restaurantId) {
-      return { ok: false, error: `Produto indisponível: ${p?.name ?? item.productId}` };
+  try {
+    for (const item of data.items) {
+      const p = productMap.get(item.productId)!;
+      if (!p.is_available || p.restaurant_id !== data.restaurantId) {
+        return {
+          ok: false,
+          error: `Produto indisponível: ${p?.name ?? item.productId}`,
+        };
+      }
+
+      const baseUnit = p.promo_price_cents ?? p.price_cents;
+      const groups = optionGroupsByProduct.get(item.productId) ?? [];
+      const { unitOptionsCents, snapshots } = resolveCheckoutItemOptions({
+        productName: p.name,
+        groups,
+        selected: item.options ?? [],
+      });
+
+      const unit = baseUnit + unitOptionsCents;
+      const itemTotal = unit * item.quantity;
+      subtotal += itemTotal;
+      orderItems.push({
+        product_id: p.id,
+        product_name: p.name,
+        unit_price_cents: unit,
+        quantity: item.quantity,
+        total_cents: itemTotal,
+        notes: item.notes ?? null,
+        options: snapshots,
+      });
     }
-    const unit = p.promo_price_cents ?? p.price_cents;
-    const itemTotal = unit * item.quantity;
-    subtotal += itemTotal;
-    orderItems.push({
-      product_id: p.id,
-      product_name: p.name,
-      unit_price_cents: unit,
-      quantity: item.quantity,
-      total_cents: itemTotal,
-      notes: item.notes ?? null,
-    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Opções inválidas.",
+    };
   }
 
   // Configurações do restaurante (taxa de entrega / pedido mínimo)
@@ -139,6 +195,25 @@ export async function createOrderAction(
 
   if (settings && subtotal < settings.min_order_cents) {
     return { ok: false, error: "Pedido abaixo do valor mínimo." };
+  }
+
+  if (settings) {
+    if (data.type === "delivery" && settings.accepts_delivery === false) {
+      return { ok: false, error: "Este restaurante não aceita entrega." };
+    }
+    if (data.type === "pickup" && settings.accepts_pickup === false) {
+      return { ok: false, error: "Este restaurante não aceita retirada." };
+    }
+    if (
+      settings.payment_methods?.length &&
+      !settings.payment_methods.includes(data.paymentMethod)
+    ) {
+      return { ok: false, error: "Forma de pagamento indisponível." };
+    }
+  }
+
+  if (data.type === "delivery" && !data.address) {
+    return { ok: false, error: "Informe o endereço de entrega." };
   }
 
   let deliveryFee = 0;
@@ -194,6 +269,22 @@ export async function createOrderAction(
 
   const isOnlinePayment = data.paymentMethod === "online";
 
+  if (isOnlinePayment) {
+    if (!isPagarmeConfigured() && !isPagarmeDevMock()) {
+      return { ok: false, error: "Pagamento online indisponível no momento." };
+    }
+    const document = data.customerDocument?.replace(/\D/g, "") ?? "";
+    if (document.length !== 11) {
+      return { ok: false, error: "Informe um CPF válido para pagamento online." };
+    }
+    if (!user.email) {
+      return {
+        ok: false,
+        error: "Seu perfil precisa de um e-mail para pagamento online.",
+      };
+    }
+  }
+
   // Cria pedido
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -222,11 +313,44 @@ export async function createOrderAction(
     return { ok: false, error: "Não foi possível criar o pedido." };
   }
 
-  const { error: itemsError } = await supabase.from("order_items").insert(
-    orderItems.map((i) => ({ ...i, order_id: order.id }))
-  );
-  if (itemsError) {
+  const { data: insertedItems, error: itemsError } = await supabase
+    .from("order_items")
+    .insert(
+      orderItems.map((i) => ({
+        order_id: order.id,
+        product_id: i.product_id,
+        product_name: i.product_name,
+        unit_price_cents: i.unit_price_cents,
+        quantity: i.quantity,
+        total_cents: i.total_cents,
+        notes: i.notes,
+      }))
+    )
+    .select("id");
+
+  if (itemsError || !insertedItems?.length) {
     return { ok: false, error: "Falha ao registrar itens do pedido." };
+  }
+
+  const optionRows = orderItems.flatMap((item, index) =>
+    item.options.map((option) => ({
+      order_item_id: insertedItems[index]!.id,
+      option_id: option.option_id,
+      option_item_id: option.option_item_id,
+      option_name: option.option_name,
+      option_item_name: option.option_item_name,
+      unit_price_cents: option.unit_price_cents,
+      quantity: option.quantity,
+    }))
+  );
+
+  if (optionRows.length) {
+    const { error: optionsError } = await supabase
+      .from("order_item_options")
+      .insert(optionRows);
+    if (optionsError) {
+      return { ok: false, error: "Falha ao registrar complementos do pedido." };
+    }
   }
 
   const { error: paymentError } = await supabase.from("payments").insert({
@@ -234,7 +358,7 @@ export async function createOrderAction(
     method: data.paymentMethod,
     status: "pending",
     amount_cents: total,
-    provider: isOnlinePayment ? "mercadopago" : null,
+    provider: isOnlinePayment ? "pagarme" : null,
   });
   if (paymentError) {
     return { ok: false, error: "Falha ao registrar pagamento. Tente novamente." };
@@ -247,55 +371,88 @@ export async function createOrderAction(
       .eq("id", couponId);
   }
 
-  // ── MercadoPago: cria preferência e retorna URL de pagamento ──────────
+  // ── Pagar.me: cria cobrança PIX ou cartão ─────────────────────────────
   if (isOnlinePayment) {
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
       const { data: restaurant } = await supabase
         .from("restaurants")
         .select("name")
         .eq("id", data.restaurantId)
         .single<{ name: string }>();
 
-      const pref = await mpPreference.create({
-        body: {
-          external_reference: order.id,
-          statement_descriptor: restaurant?.name ?? "Nenos Food",
-          items: orderItems.map((item) => ({
-            id: item.product_id,
-            title: item.product_name,
-            quantity: item.quantity,
-            unit_price: parseFloat((item.unit_price_cents / 100).toFixed(2)),
-            currency_id: "BRL",
-          })),
-          payer: { name: data.customerName },
-          back_urls: {
-            success: `${siteUrl}/payment/success?order=${order.id}`,
-            failure: `${siteUrl}/payment/failure?order=${order.id}`,
-            pending: `${siteUrl}/payment/pending?order=${order.id}`,
-          },
-          auto_return: "approved",
-          notification_url: `${siteUrl}/api/mercadopago/webhook`,
-        },
-      });
+      const paymentType = data.onlinePaymentType ?? "pix";
 
-      const mpInitPoint = isSandbox()
-        ? pref.sandbox_init_point
-        : pref.init_point;
+      const pagarmeResult = isPagarmeDevMock()
+        ? createMockPagarmePixOrder(order.id)
+        : await createPagarmeOrder({
+            orderId: order.id,
+            orderNumber: order.order_number,
+            restaurantName: restaurant?.name ?? "Nenos Food",
+            restaurantRecipientId: settings?.pagarme_recipient_id ?? null,
+            totalCents: total,
+            items: orderItems.map((item) => ({
+              productId: item.product_id,
+              name: item.product_name,
+              quantity: item.quantity,
+              unitPriceCents: item.unit_price_cents,
+            })),
+            customer: {
+              name: data.customerName,
+              email: user.email!,
+              document: data.customerDocument!,
+              phone: data.customerPhone,
+            },
+            paymentType,
+          });
 
-      if (pref.id) {
-        await supabase
-          .from("payments")
-          .update({ provider_ref: pref.id })
-          .eq("order_id", order.id);
-      }
+      const providerPayload =
+        pagarmeResult.type === "pix"
+          ? {
+              type: "pix",
+              qr_code: pagarmeResult.data.qrCode,
+              qr_code_url: pagarmeResult.data.qrCodeUrl,
+              expires_at: pagarmeResult.data.expiresAt,
+              ...(isPagarmeDevMock() ? { mock: true } : {}),
+            }
+          : {
+              type: "credit_card",
+              checkout_url: pagarmeResult.data.checkoutUrl,
+            };
+
+      await supabase
+        .from("payments")
+        .update({
+          provider_ref: pagarmeResult.data.chargeId,
+          provider_payload: providerPayload,
+        })
+        .eq("order_id", order.id);
 
       revalidatePath("/dashboard/orders");
-      return { ok: true, orderId: order.id, orderNumber: order.order_number, mpInitPoint: mpInitPoint ?? undefined };
+
+      const paymentRedirect =
+        pagarmeResult.type === "pix"
+          ? `/payment/pix?order=${order.id}`
+          : pagarmeResult.data.checkoutUrl ?? `/payment/pending?order=${order.id}`;
+
+      return {
+        ok: true,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        paymentRedirect,
+      };
     } catch (err) {
-      console.error("[mercadopago] preference error:", err);
-      return { ok: false, error: "Erro ao iniciar pagamento online. Tente outro método." };
+      console.error("[pagarme] order error:", err);
+      await supabase
+        .from("orders")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", order.id);
+      return {
+        ok: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Erro ao iniciar pagamento online. Tente outro método.",
+      };
     }
   }
 
@@ -337,6 +494,12 @@ export async function updateOrderStatusAction(
     .eq("id", orderId);
 
   if (error) return { ok: false, error: "Falha ao atualizar status." };
+
+  if (nextStatus === "out_for_delivery") {
+    await ensureDeliveryCode(orderId, supabase);
+  }
+
+  await notifyOrderStatusChange(orderId, nextStatus);
 
   revalidatePath("/dashboard/orders");
   return { ok: true };

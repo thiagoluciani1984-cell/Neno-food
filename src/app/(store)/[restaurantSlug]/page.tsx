@@ -19,7 +19,7 @@ import { createClient } from "@/infra/supabase/server";
 
 interface Props {
   params: Promise<{ restaurantSlug: string }>;
-  searchParams: Promise<{ aba?: string }>;
+  searchParams: Promise<{ aba?: string; produto?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RestaurantPage({ params, searchParams }: Props) {
   const { restaurantSlug } = await params;
-  const { aba } = await searchParams;
+  const { aba, produto } = await searchParams;
   const tab =
     aba === "publicacoes"
       ? "publicacoes"
@@ -46,6 +46,8 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
   if (!menu) notFound();
 
   const { restaurant, settings, categories } = menu;
+  const isRestaurantOpen = settings?.is_open ?? false;
+  const deepLinkSlug = produto?.trim() || undefined;
 
   const { profile } = await getSession();
   const supabase = await createClient();
@@ -225,6 +227,9 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                       key={product.id}
                       product={product}
                       restaurantId={restaurant.id}
+                      restaurantSlug={restaurantSlug}
+                      deepLinkSlug={deepLinkSlug}
+                      isOpen={isRestaurantOpen}
                     />
                   ))}
                 </div>

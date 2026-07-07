@@ -1,5 +1,7 @@
 /* Aplica supabase/full_setup.sql no banco remoto do Supabase.
-   A senha vem da variável de ambiente PGPW (não fica salva no arquivo). */
+   Gere antes: npm run db:build
+   A senha vem da variável de ambiente PGPW (não fica salva no arquivo).
+   Para bancos existentes, prefira: npm run db:apply */
 const fs = require("fs");
 const path = require("path");
 const { Client } = require("pg");

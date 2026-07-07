@@ -16,7 +16,7 @@ export async function getActiveOrders(
   const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
-    .select("*, order_items(*)")
+    .select("*, order_items(*, order_item_options(*))")
     .eq("restaurant_id", restaurantId)
     .in("status", ACTIVE_STATUSES)
     .order("created_at", { ascending: true });

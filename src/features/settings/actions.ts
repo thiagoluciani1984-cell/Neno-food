@@ -42,6 +42,7 @@ export async function saveSettingsAction(
     address_city: data.address_city,
     address_state: data.address_state,
     address_zip: data.address_zip,
+    pagarme_recipient_id: data.pagarme_recipient_id?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 
