@@ -2,25 +2,27 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/infra/supabase/client";
-import {
-  cardItem,
-  mascotFloat,
-  nenosClass,
-} from "@/lib/motion/nenos-motion";
+import { cardItem, mascotFloat } from "@/lib/motion/nenos-motion";
 import { useNenosVariants } from "@/lib/motion/use-nenos-motion";
 import {
   formatAddressForMaps,
   mapsCoordsUrl,
   mapsDirectionsUrl,
   mapsSearchUrl,
-  openStreetMapEmbedUrl,
 } from "@/features/delivery/maps";
+import type { LatLng } from "@/features/delivery/components/live-delivery-map";
 import type { DeliveryAddressSnapshot } from "@/types/database.types";
+
+const LiveDeliveryMap = dynamic(
+  () => import("@/features/delivery/components/live-delivery-map").then((m) => m.LiveDeliveryMap),
+  { ssr: false, loading: () => <div className="h-64 w-full animate-pulse bg-orange-50" /> }
+);
 
 interface TrackingPoint {
   latitude: number;
@@ -28,34 +30,16 @@ interface TrackingPoint {
   created_at: string;
 }
 
-function RouteOverlay() {
-  return (
-    <svg
-      className="pointer-events-none absolute inset-0 z-10 h-full w-full"
-      viewBox="0 0 320 192"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path
-        d="M24 160 C 80 40, 120 140, 160 96 S 260 24, 296 48"
-        fill="none"
-        stroke="#F97316"
-        strokeWidth="3"
-        strokeLinecap="round"
-        className={nenosClass.routeDash}
-      />
-    </svg>
-  );
-}
-
 export function DeliveryTrackingCard({
   orderId,
   deliveryAddress,
   initialPoint,
+  destination,
 }: {
   orderId: string;
   deliveryAddress: DeliveryAddressSnapshot | null;
   initialPoint: TrackingPoint | null;
+  destination?: LatLng | null;
 }) {
   const [point, setPoint] = useState<TrackingPoint | null>(initialPoint);
   const addressQuery = formatAddressForMaps(deliveryAddress);
@@ -103,17 +87,11 @@ export function DeliveryTrackingCard({
         <CardContent className="space-y-4">
           {point ? (
             <>
-              <div className="relative overflow-hidden rounded-lg border">
-                <iframe
-                  title="Mapa da entrega"
-                  src={openStreetMapEmbedUrl(
-                    Number(point.latitude),
-                    Number(point.longitude)
-                  )}
-                  className="relative z-0 h-48 w-full border-0"
-                  loading="lazy"
+              <div className="relative h-64 w-full overflow-hidden rounded-lg border">
+                <LiveDeliveryMap
+                  driverPosition={{ lat: Number(point.latitude), lng: Number(point.longitude) }}
+                  destination={destination ?? null}
                 />
-                <RouteOverlay />
               </div>
               <p className="text-xs text-muted-foreground">
                 Última atualização:{" "}

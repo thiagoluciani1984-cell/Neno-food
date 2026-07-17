@@ -24,8 +24,10 @@ export default async function Image() {
           fontFamily: "sans-serif",
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element -- next/og requires a raw <img>, not next/image */}
         <img
           src={logoSrc}
+          alt=""
           width={168}
           height={168}
           style={{

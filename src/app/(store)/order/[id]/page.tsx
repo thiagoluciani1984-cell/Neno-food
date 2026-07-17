@@ -11,8 +11,15 @@ import { OrderActiveBanner } from "@/features/orders/components/order-active-ban
 import { OrderPaymentBanner } from "@/features/orders/components/order-payment-banner";
 import { DeliveryPinCard } from "@/features/orders/components/delivery-pin-card";
 import { ReviewForm } from "@/features/reviews/components/review-form";
-import { getDeliveryCodeForOrder, getLatestTrackingPoint } from "@/features/delivery/queries";
+import {
+  getDeliveryCodeForOrder,
+  getLatestTrackingPoint,
+  getDriverForOrder,
+} from "@/features/delivery/queries";
+import { geocodeAddress } from "@/features/delivery/geocode";
+import { formatAddressForMaps } from "@/features/delivery/maps";
 import { DeliveryTrackingCard } from "@/features/delivery/components/delivery-tracking-card";
+import { DriverInfoCard } from "@/features/delivery/components/driver-info-card";
 import { getOrderForTracking } from "@/features/orders/queries";
 import { formatBRL } from "@/lib/money";
 import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
@@ -42,10 +49,15 @@ export default async function OrderPage({
       ? await getDeliveryCodeForOrder(order.id)
       : null;
 
-  const trackingPoint =
-    order.status === "out_for_delivery" && order.type === "delivery"
-      ? await getLatestTrackingPoint(order.id)
-      : null;
+  const isOutForDelivery = order.status === "out_for_delivery" && order.type === "delivery";
+
+  const [trackingPoint, driver, destination] = await Promise.all([
+    isOutForDelivery ? getLatestTrackingPoint(order.id) : Promise.resolve(null),
+    isOutForDelivery ? getDriverForOrder(order.id) : Promise.resolve(null),
+    isOutForDelivery
+      ? geocodeAddress(formatAddressForMaps(order.delivery_address))
+      : Promise.resolve(null),
+  ]);
 
   const restaurant = Array.isArray(order.restaurants)
     ? order.restaurants[0]
@@ -79,11 +91,14 @@ export default async function OrderPage({
         />
       )}
 
-      {order.status === "out_for_delivery" && order.type === "delivery" && (
+      {isOutForDelivery && driver && <DriverInfoCard driver={driver} />}
+
+      {isOutForDelivery && (
         <DeliveryTrackingCard
           orderId={order.id}
           deliveryAddress={order.delivery_address}
           initialPoint={trackingPoint}
+          destination={destination ? { lat: destination.latitude, lng: destination.longitude } : null}
         />
       )}
 
