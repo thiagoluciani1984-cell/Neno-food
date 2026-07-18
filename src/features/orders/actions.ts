@@ -130,7 +130,9 @@ export async function createOrderAction(
   const productIds = data.items.map((i) => i.productId);
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, price_cents, promo_price_cents, is_available, restaurant_id")
+    .select(
+      "id, name, price_cents, promo_price_cents, is_available, restaurant_id, prep_time_minutes"
+    )
     .in("id", productIds);
 
   if (!products || products.length !== productIds.length) {
@@ -219,6 +221,21 @@ export async function createOrderAction(
     .select("*")
     .eq("restaurant_id", data.restaurantId)
     .maybeSingle<RestaurantSettings>();
+
+  const { data: restaurantPrep } = await supabase
+    .from("restaurants")
+    .select("avg_prep_minutes")
+    .eq("id", data.restaurantId)
+    .maybeSingle<{ avg_prep_minutes: number }>();
+
+  // Tempo de preparo: o item mais demorado do pedido (cozinha trabalha em
+  // paralelo), com fallback pra média do restaurante quando o produto não
+  // tem tempo próprio cadastrado.
+  const maxItemPrepMinutes = Math.max(
+    0,
+    ...products.map((p) => (p as Product).prep_time_minutes ?? 0)
+  );
+  const prepMinutes = maxItemPrepMinutes > 0 ? maxItemPrepMinutes : restaurantPrep?.avg_prep_minutes ?? 40;
 
   if (settings && subtotal < settings.min_order_cents) {
     return { ok: false, error: "Pedido abaixo do valor mínimo." };
@@ -334,6 +351,7 @@ export async function createOrderAction(
       discount_cents: discount,
       total_cents: total,
       change_for_cents: data.changeForCents ?? null,
+      prep_minutes: prepMinutes,
     })
     .select("id, order_number, guest_access_token")
     .single<{ id: string; order_number: number; guest_access_token: string | null }>();

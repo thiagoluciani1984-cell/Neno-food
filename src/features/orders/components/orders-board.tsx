@@ -15,6 +15,7 @@ import {
   nextStatuses,
 } from "@/core/domain/value-objects/order-status";
 import { updateOrderStatusAction } from "@/features/orders/actions";
+import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
 import { playNewOrderChime } from "@/lib/sound";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
@@ -116,6 +117,10 @@ export function OrdersBoard({
                         {order.type === "delivery" ? "Entrega" : "Retirada"}
                       </Badge>
                     </div>
+
+                    {(order.status === "received" ||
+                      order.status === "confirmed" ||
+                      order.status === "preparing") && <PrepCountdownBadge order={order} />}
 
                     <div className="text-sm">
                       <p className="font-medium">{order.customer_name}</p>

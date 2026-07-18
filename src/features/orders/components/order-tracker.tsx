@@ -16,6 +16,7 @@ import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
 import { timelineLineMotion, timelineStepMotion } from "@/lib/motion/nenos-motion";
 import type { OrderStatus, OrderType } from "@/types/database.types";
 import { cn } from "@/lib/utils";
+import { PrepCountdownBadge } from "./prep-countdown-badge";
 
 const DELIVERY_STEPS: { status: OrderStatus; label: string; icon: typeof ChefHat }[] = [
   { status: "received", label: "Confirmado", icon: CheckCircle2 },
@@ -36,12 +37,19 @@ export function OrderTracker({
   orderId,
   initialStatus,
   orderType = "delivery",
+  createdAt,
+  initialConfirmedAt,
+  prepMinutes,
 }: {
   orderId: string;
   initialStatus: OrderStatus;
   orderType?: OrderType;
+  createdAt: string;
+  initialConfirmedAt: string | null;
+  prepMinutes: number;
 }) {
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
+  const [confirmedAt, setConfirmedAt] = useState<string | null>(initialConfirmedAt);
   const trackSteps = orderType === "pickup" ? PICKUP_STEPS : DELIVERY_STEPS;
 
   useEffect(() => {
@@ -57,7 +65,9 @@ export function OrderTracker({
           filter: `id=eq.${orderId}`,
         },
         (payload) => {
-          setStatus((payload.new as { status: OrderStatus }).status);
+          const row = payload.new as { status: OrderStatus; confirmed_at: string | null };
+          setStatus(row.status);
+          setConfirmedAt(row.confirmed_at);
         }
       )
       .subscribe();
@@ -153,6 +163,13 @@ export function OrderTracker({
       <p className="mt-4 text-center text-sm font-semibold text-primary">
         {ORDER_STATUS_LABEL[status]}
       </p>
+      {(status === "received" || status === "confirmed" || status === "preparing") && (
+        <div className="mt-2 flex justify-center">
+          <PrepCountdownBadge
+            order={{ created_at: createdAt, confirmed_at: confirmedAt, prep_minutes: prepMinutes }}
+          />
+        </div>
+      )}
     </div>
   );
 }

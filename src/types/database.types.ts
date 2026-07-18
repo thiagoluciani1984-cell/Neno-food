@@ -424,6 +424,7 @@ export interface Order {
   delivered_at: string | null;
   cancelled_at: string | null;
   rated_at: string | null;
+  prep_minutes: number;
   created_at: string;
   updated_at: string;
 }

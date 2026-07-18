@@ -106,6 +106,9 @@ export default async function OrderPage({
         orderId={order.id}
         initialStatus={order.status}
         orderType={order.type}
+        createdAt={order.created_at}
+        initialConfirmedAt={order.confirmed_at}
+        prepMinutes={order.prep_minutes}
       />
 
       <Card>

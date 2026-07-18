@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 25 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-17T23:51:19.426Z
+-- Conteúdo: 26 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-18T00:04:45.067Z
 -- =====================================================================
 
 
@@ -2386,6 +2386,19 @@ create policy "orders_select_available_pool" on public.orders
         and d.status = 'available'
     )
   );
+
+
+-- ─── 0026_order_prep_time.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0026 · Tempo de preparo estimado por pedido
+-- Guardamos só a duração (minutos); o horário previsto é sempre
+-- derivado de confirmed_at (ou created_at, antes da confirmação) +
+-- prep_minutes, calculado na UI — evita duas fontes de verdade.
+-- =====================================================================
+
+alter table public.orders
+  add column if not exists prep_minutes integer not null default 40 check (prep_minutes >= 0);
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────
