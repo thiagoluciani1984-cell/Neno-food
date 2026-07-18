@@ -27,7 +27,9 @@ export async function loginAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: "E-mail ou senha incorretos." };
+  if (error) {
+    return { error: `[DEBUG ${error.status} ${error.code ?? ""}] ${error.message}` };
+  }
 
   // Direciona conforme o papel do usuário
   const {
