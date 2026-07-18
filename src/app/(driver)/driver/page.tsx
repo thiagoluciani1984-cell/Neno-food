@@ -20,7 +20,7 @@ import {
 } from "@/features/driver/queries";
 import { DriverStatusToggle } from "@/features/driver/components/driver-status-toggle";
 import { ActiveOrderCard } from "@/features/driver/components/active-order-card";
-import { AvailableOrderCard } from "@/features/driver/components/available-order-card";
+import { AvailableOrdersPanel } from "@/features/driver/components/available-orders-panel";
 
 export const metadata: Metadata = { title: "Portal do Entregador" };
 
@@ -131,31 +131,7 @@ export default async function DriverPage() {
 
         {/* Pedidos disponíveis */}
         {isApproved && driver.status === "available" && !activeOrder && (
-          <div>
-            <h2 className="mb-3 font-semibold">
-              Pedidos disponíveis
-              {availableOrders.length > 0 && (
-                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                  {availableOrders.length}
-                </span>
-              )}
-            </h2>
-            {availableOrders.length === 0 ? (
-              <div className="rounded-xl border bg-white py-10 text-center">
-                <Bike className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  Nenhum pedido disponível no momento.
-                </p>
-                <p className="text-xs text-muted-foreground">Fique online e aguarde!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {availableOrders.map((order) => (
-                  <AvailableOrderCard key={order.id} order={order} />
-                ))}
-              </div>
-            )}
-          </div>
+          <AvailableOrdersPanel initialOrders={availableOrders} />
         )}
 
         {/* Offline sem entrega ativa */}

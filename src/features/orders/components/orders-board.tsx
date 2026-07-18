@@ -15,6 +15,7 @@ import {
   nextStatuses,
 } from "@/core/domain/value-objects/order-status";
 import { updateOrderStatusAction } from "@/features/orders/actions";
+import { playNewOrderChime } from "@/lib/sound";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
 const COLUMNS: OrderStatus[] = [
@@ -62,6 +63,7 @@ export function OrdersBoard({
             const full = await fetchOrder(row.id);
             if (full) {
               setOrders((prev) => [...prev, full]);
+              playNewOrderChime();
               toast.success(`Novo pedido #${full.order_number}!`, {
                 description: full.customer_name ?? undefined,
               });

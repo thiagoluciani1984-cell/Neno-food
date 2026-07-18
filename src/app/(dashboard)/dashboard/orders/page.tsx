@@ -4,6 +4,7 @@ import { getActiveOrders } from "@/features/orders/queries";
 import { OrdersBoard } from "@/features/orders/components/orders-board";
 import { OrdersTable } from "@/features/orders/components/orders-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SoundToggle } from "@/components/shared/sound-toggle";
 
 export const metadata: Metadata = { title: "Pedidos" };
 
@@ -17,11 +18,14 @@ export default async function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold">Pedidos</h1>
-        <p className="text-sm text-muted-foreground">
-          Painel de produção (KDS) — atualiza em tempo real.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-2xl font-bold">Pedidos</h1>
+          <p className="text-sm text-muted-foreground">
+            Painel de produção (KDS) — atualiza em tempo real.
+          </p>
+        </div>
+        <SoundToggle />
       </div>
       <Card>
         <CardHeader>

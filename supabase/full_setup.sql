@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 24 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-07T14:30:00.229Z
+-- Conteúdo: 25 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-17T23:51:19.426Z
 -- =====================================================================
 
 
@@ -2363,6 +2363,29 @@ alter table public.orders
 create index if not exists idx_orders_guest_token
   on public.orders (guest_access_token)
   where guest_access_token is not null;
+
+
+-- ─── 0025_driver_available_orders.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0025 · RLS: entregadores aprovados e online podem ver a fila de
+-- pedidos prontos ainda não atribuídos (pool de corridas disponíveis).
+-- Sem isso, `orders_select` (0008) nunca libera essas linhas para o
+-- motorista, pois driver_id ainda é null.
+-- =====================================================================
+
+create policy "orders_select_available_pool" on public.orders
+  for select using (
+    status = 'ready'
+    and type = 'delivery'
+    and driver_id is null
+    and exists (
+      select 1 from public.drivers d
+      where d.profile_id = auth.uid()
+        and d.approval_status = 'approved'
+        and d.status = 'available'
+    )
+  );
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────

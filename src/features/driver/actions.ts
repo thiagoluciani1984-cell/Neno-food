@@ -6,6 +6,7 @@ import { createClient } from "@/infra/supabase/server";
 import { getSession } from "@/features/auth/get-session";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
 import { siteConfig } from "@/config/site";
+import { getAvailableOrders, type AvailableOrder } from "./queries";
 import {
   driverSignupSchema,
   driverPersonalSchema,
@@ -217,6 +218,14 @@ export async function updateDriverStatusAction(
   if (error) return { error: error.message };
   revalidatePath("/driver");
   return { ok: true };
+}
+
+// ─── Fila de pedidos disponíveis (usado pelo polling/realtime) ────────
+
+export async function getAvailableOrdersAction(): Promise<AvailableOrder[]> {
+  const { profile } = await getSession();
+  if (!profile?.id) return [];
+  return getAvailableOrders();
 }
 
 // ─── Aceitar pedido ───────────────────────────────────────────────────
