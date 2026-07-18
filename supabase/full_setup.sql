@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 26 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-18T00:04:45.067Z
+-- Conteúdo: 27 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-18T00:47:19.919Z
 -- =====================================================================
 
 
@@ -2399,6 +2399,25 @@ create policy "orders_select_available_pool" on public.orders
 
 alter table public.orders
   add column if not exists prep_minutes integer not null default 40 check (prep_minutes >= 0);
+
+
+-- ─── 0027_guest_customers.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0027 · Clientes convidados "lembrados pelo navegador"
+-- Permite que um pedido de convidado (sem login) vire um registro
+-- reaproveitável em `customers`, identificado por um token opaco
+-- guardado num cookie do navegador (não por telefone/CPF público —
+-- evita que alguém descubra dados de outra pessoa só sabendo o
+-- telefone dela). Acesso sempre via service_role (bypassa RLS),
+-- igual ao padrão já usado para pedidos de convidado.
+-- =====================================================================
+
+alter table public.customers
+  alter column profile_id drop not null,
+  add column if not exists full_name text,
+  add column if not exists phone text,
+  add column if not exists guest_token uuid unique default gen_random_uuid();
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────

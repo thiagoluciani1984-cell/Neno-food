@@ -8,6 +8,7 @@ import { computeCouponDiscountCents } from "@/core/domain/entities/cart";
 import { canTransition } from "@/core/domain/value-objects/order-status";
 import { notifyOrderStatusChange } from "@/features/notifications/lib";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
+import { upsertGuestCustomer, saveGuestAddress } from "@/features/customers/guest";
 import {
   createPagarmeOrder,
   isPagarmeConfigured,
@@ -124,6 +125,12 @@ export async function createOrderAction(
       .single<{ id: string }>();
     if (!customer) return { ok: false, error: "Perfil de cliente não encontrado." };
     customerId = customer.id;
+  } else {
+    const guest = await upsertGuestCustomer({
+      fullName: data.customerName,
+      phone: data.customerPhone,
+    });
+    customerId = guest.customerId;
   }
 
   // Preços confiáveis do banco
@@ -411,6 +418,10 @@ export async function createOrderAction(
       .from("coupons")
       .update({ used_count: appliedCoupon.used_count + 1 })
       .eq("id", couponId);
+  }
+
+  if (isGuest && data.type === "delivery" && data.address) {
+    await saveGuestAddress(customerId!, data.address);
   }
 
   // ── Pagar.me: cria cobrança PIX ou cartão ─────────────────────────────

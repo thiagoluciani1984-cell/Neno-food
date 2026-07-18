@@ -264,7 +264,10 @@ export interface ImageLibrary {
 
 export interface Customer {
   id: string;
-  profile_id: string;
+  profile_id: string | null;
+  full_name: string | null;
+  phone: string | null;
+  guest_token: string | null;
   loyalty_points: number;
   total_orders: number;
   total_spent_cents: number;
