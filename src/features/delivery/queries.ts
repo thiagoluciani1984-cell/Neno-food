@@ -3,8 +3,14 @@ import { createClient } from "@/infra/supabase/server";
 import { createAdminClient } from "@/infra/supabase/admin";
 import { generateDeliveryPin } from "./lib";
 
+/**
+ * Uses the admin client for the same reason as getDriverForOrder below:
+ * RLS on delivery_codes/delivery_tracking doesn't grant guest customers
+ * (no auth.uid()) access even to their own order, and callers only reach
+ * here after getOrderForTracking already authorized this exact order.
+ */
 export async function getDeliveryCodeForOrder(orderId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("delivery_codes")
     .select("code, confirmed_at, expires_at")
@@ -31,10 +37,11 @@ export async function ensureDeliveryCode(
 
   if (existing) return;
 
-  await supabase.from("delivery_codes").insert({
+  const { error } = await supabase.from("delivery_codes").insert({
     order_id: orderId,
     code: generateDeliveryPin(),
   });
+  if (error) console.error("[ensureDeliveryCode]", error.message);
 }
 
 export interface OrderDriverInfo {
@@ -83,7 +90,7 @@ export async function getDriverForOrder(orderId: string): Promise<OrderDriverInf
 }
 
 export async function getLatestTrackingPoint(orderId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("delivery_tracking")
     .select("latitude, longitude, created_at")

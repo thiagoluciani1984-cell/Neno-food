@@ -56,12 +56,15 @@ export type AvailableOrder = {
 export async function getAvailableOrders(): Promise<AvailableOrder[]> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(`
       id, order_number, customer_name, delivery_address,
       total_cents, delivery_fee_cents, created_at,
-      restaurant:restaurants!restaurant_id(name, address),
+      restaurant:restaurants!restaurant_id(
+        name,
+        restaurant_settings(address_street, address_number, address_district)
+      ),
       order_items(id)
     `)
     .eq("status", "ready")
@@ -70,10 +73,20 @@ export async function getAvailableOrders(): Promise<AvailableOrder[]> {
     .order("created_at", { ascending: true })
     .limit(10);
 
+  if (error) {
+    console.error("[getAvailableOrders]", error.message);
+    return [];
+  }
   if (!data) return [];
 
   return data.map((o: any) => {
     const restaurant = Array.isArray(o.restaurant) ? o.restaurant[0] : o.restaurant;
+    const settings = Array.isArray(restaurant?.restaurant_settings)
+      ? restaurant.restaurant_settings[0]
+      : restaurant?.restaurant_settings;
+    const restaurantAddress = settings
+      ? `${settings.address_street ?? ""}, ${settings.address_number ?? ""} — ${settings.address_district ?? ""}`
+      : "";
     return {
       id: o.id,
       order_number: o.order_number,
@@ -86,7 +99,7 @@ export async function getAvailableOrders(): Promise<AvailableOrder[]> {
       total_cents: o.total_cents,
       delivery_fee_cents: o.delivery_fee_cents,
       restaurant_name: restaurant?.name ?? "",
-      restaurant_address: restaurant?.address ?? "",
+      restaurant_address: restaurantAddress,
       items_count: (o.order_items ?? []).length,
       created_at: o.created_at,
     };

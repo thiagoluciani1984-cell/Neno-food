@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 28 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-18T10:17:13.965Z
+-- Conteúdo: 31 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-18T23:26:04.768Z
 -- =====================================================================
 
 
@@ -2603,6 +2603,87 @@ begin
   return new;
 end;
 $$;
+
+
+-- ─── 0029_fix_driver_available_orders_items.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0029 · RLS: itens do pedido também precisam ser visíveis na fila de
+-- corridas disponíveis do motoboy — não só o pedido em si (0025).
+-- order_items_select (0008) só libera itens de pedidos já atribuídos
+-- ao motorista (driver_id = current_driver_id()), então getAvailableOrders()
+-- (que faz embed de order_items pra contar itens) nunca retornava nada
+-- pra um motorista olhando pedidos ainda sem dono.
+-- =====================================================================
+
+drop policy if exists "order_items_select_available_pool" on public.order_items;
+create policy "order_items_select_available_pool" on public.order_items
+  for select using (
+    order_id in (
+      select id from public.orders o
+      where o.status = 'ready'
+        and o.type = 'delivery'
+        and o.driver_id is null
+        and exists (
+          select 1 from public.drivers d
+          where d.profile_id = auth.uid()
+            and d.approval_status = 'approved'
+            and d.status = 'available'
+        )
+    )
+  );
+
+
+-- ─── 0030_fix_driver_claim_order.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0030 · RLS: motorista consegue reivindicar (aceitar) um pedido da
+-- fila de disponíveis. orders_update (0008) só libera update quando
+-- driver_id JÁ é do motorista — mas ao aceitar, driver_id ainda está
+-- null, então a única forma de setá-lo pela primeira vez sempre falhava
+-- com "Pedido não disponível mais." mesmo com o pedido livre.
+-- =====================================================================
+
+drop policy if exists "orders_update_claim_available" on public.orders;
+create policy "orders_update_claim_available" on public.orders
+  for update
+  using (
+    status = 'ready'
+    and type = 'delivery'
+    and driver_id is null
+    and exists (
+      select 1 from public.drivers d
+      where d.profile_id = auth.uid()
+        and d.approval_status = 'approved'
+        and d.status = 'available'
+    )
+  )
+  with check (
+    driver_id in (select id from public.drivers where profile_id = auth.uid())
+  );
+
+
+-- ─── 0031_fix_delivery_codes_insert.sql ─────────────────────────────────────────────────────────
+
+-- =====================================================================
+-- 0031 · RLS: delivery_codes nunca teve política de INSERT (0018 só
+-- criou a de SELECT). ensureDeliveryCode() falhava em silêncio tanto
+-- ao aceitar a corrida (driver) quanto ao marcar saiu-pra-entrega
+-- (restaurante) — o pedido avançava, mas o PIN de confirmação nunca
+-- era gerado.
+-- =====================================================================
+
+drop policy if exists "dcodes_insert" on public.delivery_codes;
+create policy "dcodes_insert" on public.delivery_codes
+  for insert
+  with check (
+    order_id in (
+      select id from public.orders
+      where restaurant_id = public.current_restaurant_id()
+         or driver_id = public.current_driver_id()
+         or public.is_master_admin()
+    )
+  );
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────
