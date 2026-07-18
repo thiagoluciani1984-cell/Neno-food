@@ -83,9 +83,8 @@ export default function DriverSignupPage() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Quer vender na plataforma?{" "}
-        <Link href="/signup/restaurant" className="text-primary hover:underline">
-          Cadastre seu restaurante
+        <Link href="/signup" className="text-primary hover:underline">
+          ← Escolher outro tipo de conta
         </Link>
       </p>
     </div>

@@ -78,6 +78,12 @@ export function SignupForm() {
           Entrar
         </Link>
       </p>
+
+      <p className="text-center text-xs text-muted-foreground">
+        <Link href="/signup" className="hover:underline">
+          ← Escolher outro tipo de conta
+        </Link>
+      </p>
     </form>
   );
 }
