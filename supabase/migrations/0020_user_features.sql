@@ -21,6 +21,7 @@ alter table public.reviews
 -- RLS
 alter table public.restaurant_favorites enable row level security;
 
+drop policy if exists "rest_fav_own" on public.restaurant_favorites;
 create policy "rest_fav_own"
   on public.restaurant_favorites
   using (

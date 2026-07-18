@@ -31,6 +31,7 @@ alter table public.ticket_messages         enable row level security;
 alter table public.refunds                 enable row level security;
 
 -- ─── restaurant_staff ────────────────────────────────────────────────
+drop policy if exists "rstaff_select" on public.restaurant_staff;
 create policy "rstaff_select" on public.restaurant_staff
   for select using (
     restaurant_id = public.current_restaurant_id()
@@ -38,12 +39,14 @@ create policy "rstaff_select" on public.restaurant_staff
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_insert" on public.restaurant_staff;
 create policy "rstaff_insert" on public.restaurant_staff
   for insert with check (
     restaurant_id = public.current_restaurant_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_update" on public.restaurant_staff;
 create policy "rstaff_update" on public.restaurant_staff
   for update using (
     restaurant_id = public.current_restaurant_id()
@@ -54,6 +57,7 @@ create policy "rstaff_update" on public.restaurant_staff
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_delete" on public.restaurant_staff;
 create policy "rstaff_delete" on public.restaurant_staff
   for delete using (
     restaurant_id = public.current_restaurant_id()
@@ -61,12 +65,14 @@ create policy "rstaff_delete" on public.restaurant_staff
   );
 
 -- ─── restaurant_documents (privados — service_role para signed URL) ──
+drop policy if exists "rdocs_select" on public.restaurant_documents;
 create policy "rdocs_select" on public.restaurant_documents
   for select using (
     restaurant_id = public.current_restaurant_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "rdocs_write" on public.restaurant_documents;
 create policy "rdocs_write" on public.restaurant_documents
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -79,14 +85,17 @@ create policy "rdocs_write" on public.restaurant_documents
 
 -- ─── restaurant_followers ─────────────────────────────────────────────
 -- Qualquer autenticado vê quem segue um restaurante (count público)
+drop policy if exists "rfollowers_select" on public.restaurant_followers;
 create policy "rfollowers_select" on public.restaurant_followers
   for select using (true);
 
+drop policy if exists "rfollowers_write" on public.restaurant_followers;
 create policy "rfollowers_write" on public.restaurant_followers
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── posts ───────────────────────────────────────────────────────────
+drop policy if exists "posts_public_read" on public.posts;
 create policy "posts_public_read" on public.posts
   for select using (
     deleted_at is null
@@ -97,6 +106,7 @@ create policy "posts_public_read" on public.posts
     )
   );
 
+drop policy if exists "posts_write" on public.posts;
 create policy "posts_write" on public.posts
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -109,11 +119,13 @@ create policy "posts_write" on public.posts
   );
 
 -- ─── post_images ─────────────────────────────────────────────────────
+drop policy if exists "post_images_read" on public.post_images;
 create policy "post_images_read" on public.post_images
   for select using (
     post_id in (select id from public.posts where deleted_at is null)
   );
 
+drop policy if exists "post_images_write" on public.post_images;
 create policy "post_images_write" on public.post_images
   for all using (
     exists (
@@ -131,46 +143,57 @@ create policy "post_images_write" on public.post_images
   );
 
 -- ─── post_likes ──────────────────────────────────────────────────────
+drop policy if exists "post_likes_read" on public.post_likes;
 create policy "post_likes_read" on public.post_likes
   for select using (true);
 
+drop policy if exists "post_likes_write" on public.post_likes;
 create policy "post_likes_write" on public.post_likes
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── post_comments ───────────────────────────────────────────────────
+drop policy if exists "post_comments_read" on public.post_comments;
 create policy "post_comments_read" on public.post_comments
   for select using (deleted_at is null);
 
+drop policy if exists "post_comments_insert" on public.post_comments;
 create policy "post_comments_insert" on public.post_comments
   for insert with check (author_id = auth.uid());
 
+drop policy if exists "post_comments_update" on public.post_comments;
 create policy "post_comments_update" on public.post_comments
   for update using (author_id = auth.uid() or public.is_master_admin())
   with check (author_id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "post_comments_delete" on public.post_comments;
 create policy "post_comments_delete" on public.post_comments
   for delete using (author_id = auth.uid() or public.is_master_admin());
 
 -- ─── post_saves ──────────────────────────────────────────────────────
+drop policy if exists "post_saves_own" on public.post_saves;
 create policy "post_saves_own" on public.post_saves
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── post_reports ────────────────────────────────────────────────────
+drop policy if exists "post_reports_insert" on public.post_reports;
 create policy "post_reports_insert" on public.post_reports
   for insert with check (reporter_id = auth.uid());
 
+drop policy if exists "post_reports_admin" on public.post_reports;
 create policy "post_reports_admin" on public.post_reports
   for select using (public.is_master_admin());
 
 -- ─── driver_documents (privados) ──────────────────────────────────────
+drop policy if exists "ddocs_select" on public.driver_documents;
 create policy "ddocs_select" on public.driver_documents
   for select using (
     driver_id = public.current_driver_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "ddocs_write" on public.driver_documents;
 create policy "ddocs_write" on public.driver_documents
   for all using (
     driver_id = public.current_driver_id()
@@ -182,6 +205,7 @@ create policy "ddocs_write" on public.driver_documents
   );
 
 -- ─── driver_vehicles ─────────────────────────────────────────────────
+drop policy if exists "dvehicles_select" on public.driver_vehicles;
 create policy "dvehicles_select" on public.driver_vehicles
   for select using (
     driver_id = public.current_driver_id()
@@ -192,25 +216,30 @@ create policy "dvehicles_select" on public.driver_vehicles
     or public.is_master_admin()
   );
 
+drop policy if exists "dvehicles_write" on public.driver_vehicles;
 create policy "dvehicles_write" on public.driver_vehicles
   for all using (driver_id = public.current_driver_id() or public.is_master_admin())
   with check (driver_id = public.current_driver_id() or public.is_master_admin());
 
 -- ─── driver_verifications ────────────────────────────────────────────
+drop policy if exists "dverif_select" on public.driver_verifications;
 create policy "dverif_select" on public.driver_verifications
   for select using (
     driver_id = public.current_driver_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "dverif_admin_write" on public.driver_verifications;
 create policy "dverif_admin_write" on public.driver_verifications
   for all using (public.is_master_admin())
   with check (public.is_master_admin());
 
 -- ─── driver_locations ────────────────────────────────────────────────
+drop policy if exists "dloc_insert" on public.driver_locations;
 create policy "dloc_insert" on public.driver_locations
   for insert with check (driver_id = public.current_driver_id());
 
+drop policy if exists "dloc_select" on public.driver_locations;
 create policy "dloc_select" on public.driver_locations
   for select using (
     driver_id = public.current_driver_id()
@@ -222,6 +251,7 @@ create policy "dloc_select" on public.driver_locations
   );
 
 -- ─── order_status_history ────────────────────────────────────────────
+drop policy if exists "osh_select" on public.order_status_history;
 create policy "osh_select" on public.order_status_history
   for select using (
     order_id in (
@@ -234,9 +264,11 @@ create policy "osh_select" on public.order_status_history
   );
 
 -- ─── delivery_tracking ───────────────────────────────────────────────
+drop policy if exists "dtrack_insert" on public.delivery_tracking;
 create policy "dtrack_insert" on public.delivery_tracking
   for insert with check (driver_id = public.current_driver_id());
 
+drop policy if exists "dtrack_select" on public.delivery_tracking;
 create policy "dtrack_select" on public.delivery_tracking
   for select using (
     driver_id = public.current_driver_id()
@@ -250,6 +282,7 @@ create policy "dtrack_select" on public.delivery_tracking
 
 -- ─── delivery_codes ──────────────────────────────────────────────────
 -- Código gerado pelo server (service_role). Cliente vê o próprio, entregador confirma.
+drop policy if exists "dcodes_select" on public.delivery_codes;
 create policy "dcodes_select" on public.delivery_codes
   for select using (
     order_id in (
@@ -261,11 +294,13 @@ create policy "dcodes_select" on public.delivery_codes
   );
 
 -- ─── product_options / product_option_items ──────────────────────────
+drop policy if exists "poptions_public_read" on public.product_options;
 create policy "poptions_public_read" on public.product_options
   for select using (
     product_id in (select id from public.products)
   );
 
+drop policy if exists "poptions_write" on public.product_options;
 create policy "poptions_write" on public.product_options
   for all using (
     product_id in (
@@ -282,11 +317,13 @@ create policy "poptions_write" on public.product_options
     or public.is_master_admin()
   );
 
+drop policy if exists "poption_items_public_read" on public.product_option_items;
 create policy "poption_items_public_read" on public.product_option_items
   for select using (
     option_id in (select id from public.product_options)
   );
 
+drop policy if exists "poption_items_write" on public.product_option_items;
 create policy "poption_items_write" on public.product_option_items
   for all using (
     option_id in (
@@ -306,6 +343,7 @@ create policy "poption_items_write" on public.product_option_items
   );
 
 -- ─── order_item_options (visibilidade herda do pedido) ───────────────
+drop policy if exists "oio_select" on public.order_item_options;
 create policy "oio_select" on public.order_item_options
   for select using (
     order_item_id in (
@@ -319,6 +357,7 @@ create policy "oio_select" on public.order_item_options
   );
 
 -- ─── image_library ───────────────────────────────────────────────────
+drop policy if exists "imglib_public_read" on public.image_library;
 create policy "imglib_public_read" on public.image_library
   for select using (
     is_approved = true
@@ -326,6 +365,7 @@ create policy "imglib_public_read" on public.image_library
     or public.is_master_admin()
   );
 
+drop policy if exists "imglib_write" on public.image_library;
 create policy "imglib_write" on public.image_library
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -337,12 +377,14 @@ create policy "imglib_write" on public.image_library
   );
 
 -- ─── audit_logs (admin only; imutável) ───────────────────────────────
+drop policy if exists "audit_admin_select" on public.audit_logs;
 create policy "audit_admin_select" on public.audit_logs
   for select using (public.is_master_admin());
 
 -- INSERT via service_role (sem política de insert — service_role ignora RLS)
 
 -- ─── support_tickets ─────────────────────────────────────────────────
+drop policy if exists "tickets_select" on public.support_tickets;
 create policy "tickets_select" on public.support_tickets
   for select using (
     reporter_id = auth.uid()
@@ -350,14 +392,17 @@ create policy "tickets_select" on public.support_tickets
     or public.is_master_admin()
   );
 
+drop policy if exists "tickets_insert" on public.support_tickets;
 create policy "tickets_insert" on public.support_tickets
   for insert with check (reporter_id = auth.uid());
 
+drop policy if exists "tickets_update" on public.support_tickets;
 create policy "tickets_update" on public.support_tickets
   for update using (assigned_to = auth.uid() or public.is_master_admin())
   with check (assigned_to = auth.uid() or public.is_master_admin());
 
 -- ─── ticket_messages ─────────────────────────────────────────────────
+drop policy if exists "tmsg_select" on public.ticket_messages;
 create policy "tmsg_select" on public.ticket_messages
   for select using (
     ticket_id in (
@@ -369,6 +414,7 @@ create policy "tmsg_select" on public.ticket_messages
     and (is_internal = false or public.is_master_admin())
   );
 
+drop policy if exists "tmsg_insert" on public.ticket_messages;
 create policy "tmsg_insert" on public.ticket_messages
   for insert with check (
     author_id = auth.uid()
@@ -381,6 +427,7 @@ create policy "tmsg_insert" on public.ticket_messages
   );
 
 -- ─── refunds ─────────────────────────────────────────────────────────
+drop policy if exists "refunds_select" on public.refunds;
 create policy "refunds_select" on public.refunds
   for select using (
     requested_by = auth.uid()
@@ -390,12 +437,14 @@ create policy "refunds_select" on public.refunds
     or public.is_master_admin()
   );
 
+drop policy if exists "refunds_insert" on public.refunds;
 create policy "refunds_insert" on public.refunds
   for insert with check (
     requested_by = auth.uid()
     or public.is_master_admin()
   );
 
+drop policy if exists "refunds_update" on public.refunds;
 create policy "refunds_update" on public.refunds
   for update using (public.is_master_admin())
   with check (public.is_master_admin());

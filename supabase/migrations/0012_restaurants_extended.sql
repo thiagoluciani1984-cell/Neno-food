@@ -67,10 +67,12 @@ create table if not exists public.restaurant_followers (
 );
 
 -- ─── Trigger updated_at ──────────────────────────────────────────────
+drop trigger if exists trg_restaurant_staff_updated_at on public.restaurant_staff;
 create trigger trg_restaurant_staff_updated_at
   before update on public.restaurant_staff
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_restaurant_documents_updated_at on public.restaurant_documents;
 create trigger trg_restaurant_documents_updated_at
   before update on public.restaurant_documents
   for each row execute function public.set_updated_at();

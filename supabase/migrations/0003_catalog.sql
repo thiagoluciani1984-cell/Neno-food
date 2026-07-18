@@ -2,7 +2,7 @@
 -- 0003 · Catálogo: categories, products, product_images
 -- =====================================================================
 
-create table public.categories (
+create table if not exists public.categories (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   name          text not null,
@@ -16,7 +16,7 @@ create table public.categories (
   unique (restaurant_id, slug)
 );
 
-create table public.products (
+create table if not exists public.products (
   id              uuid primary key default gen_random_uuid(),
   restaurant_id   uuid not null references public.restaurants (id) on delete cascade,
   category_id     uuid references public.categories (id) on delete set null,
@@ -40,7 +40,7 @@ create table public.products (
 );
 
 -- galeria de imagens adicionais por produto
-create table public.product_images (
+create table if not exists public.product_images (
   id          uuid primary key default gen_random_uuid(),
   product_id  uuid not null references public.products (id) on delete cascade,
   url         text not null,

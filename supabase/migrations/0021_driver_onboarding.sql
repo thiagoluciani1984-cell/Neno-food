@@ -8,6 +8,7 @@
 -- Entregador pode fazer upload e ler os próprios docs.
 -- Admin (service_role) lê via signed URL gerada no servidor.
 
+drop policy if exists "driver_docs_insert" on storage.objects;
 create policy "driver_docs_insert"
   on storage.objects for insert
   to authenticated
@@ -22,6 +23,7 @@ create policy "driver_docs_insert"
     )
   );
 
+drop policy if exists "driver_docs_select" on storage.objects;
 create policy "driver_docs_select"
   on storage.objects for select
   to authenticated
@@ -41,6 +43,7 @@ create policy "driver_docs_select"
     )
   );
 
+drop policy if exists "driver_docs_delete" on storage.objects;
 create policy "driver_docs_delete"
   on storage.objects for delete
   to authenticated
@@ -78,6 +81,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_driver_profile_created on public.profiles;
 create trigger on_driver_profile_created
   after insert on public.profiles
   for each row execute function public.handle_new_driver();

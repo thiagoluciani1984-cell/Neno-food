@@ -3,7 +3,7 @@
 -- =====================================================================
 
 -- ─── roles (catálogo de papéis / metadados de permissão) ─────────────
-create table public.roles (
+create table if not exists public.roles (
   key         public.user_role primary key,
   label       text not null,
   description text
@@ -13,12 +13,13 @@ insert into public.roles (key, label, description) values
   ('master_admin', 'Master Admin', 'Gerencia toda a plataforma'),
   ('restaurant',   'Restaurante',  'Gerencia seu próprio estabelecimento'),
   ('customer',     'Cliente',      'Faz pedidos e acompanha entregas'),
-  ('driver',       'Entregador',   'Realiza entregas');
+  ('driver',       'Entregador',   'Realiza entregas')
+on conflict (key) do nothing;
 
 -- ─── profiles (espelha auth.users) ───────────────────────────────────
 -- restaurant_id: para usuários do tipo 'restaurant'/'driver', indica a
 -- qual estabelecimento pertencem (base do isolamento multi-tenant).
-create table public.profiles (
+create table if not exists public.profiles (
   id            uuid primary key references auth.users (id) on delete cascade,
   role          public.user_role not null default 'customer',
   restaurant_id uuid, -- FK adicionada após restaurants (abaixo)
@@ -31,7 +32,7 @@ create table public.profiles (
 );
 
 -- ─── restaurants ─────────────────────────────────────────────────────
-create table public.restaurants (
+create table if not exists public.restaurants (
   id           uuid primary key default gen_random_uuid(),
   owner_id     uuid references public.profiles (id) on delete set null,
   name         text not null,
@@ -48,12 +49,14 @@ create table public.restaurants (
 );
 
 -- agora podemos amarrar profiles.restaurant_id
-alter table public.profiles
-  add constraint profiles_restaurant_id_fkey
-  foreign key (restaurant_id) references public.restaurants (id) on delete set null;
+do $$ begin
+  alter table public.profiles
+    add constraint profiles_restaurant_id_fkey
+    foreign key (restaurant_id) references public.restaurants (id) on delete set null;
+exception when duplicate_object then null; end $$;
 
 -- ─── restaurant_settings (1:1 com restaurants) ───────────────────────
-create table public.restaurant_settings (
+create table if not exists public.restaurant_settings (
   restaurant_id        uuid primary key references public.restaurants (id) on delete cascade,
   is_open              boolean not null default true,
   accepts_delivery     boolean not null default true,

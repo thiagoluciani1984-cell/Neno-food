@@ -66,10 +66,12 @@ create table if not exists public.refunds (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_support_tickets_updated_at on public.support_tickets;
 create trigger trg_support_tickets_updated_at
   before update on public.support_tickets
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_refunds_updated_at on public.refunds;
 create trigger trg_refunds_updated_at
   before update on public.refunds
   for each row execute function public.set_updated_at();

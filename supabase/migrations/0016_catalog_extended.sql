@@ -80,10 +80,12 @@ create table if not exists public.image_library (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_product_options_updated_at on public.product_options;
 create trigger trg_product_options_updated_at
   before update on public.product_options
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_product_option_items_updated_at on public.product_option_items;
 create trigger trg_product_option_items_updated_at
   before update on public.product_option_items
   for each row execute function public.set_updated_at();

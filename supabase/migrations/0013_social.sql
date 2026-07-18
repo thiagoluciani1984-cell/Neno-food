@@ -75,10 +75,12 @@ create table if not exists public.post_reports (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_posts_updated_at on public.posts;
 create trigger trg_posts_updated_at
   before update on public.posts
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_post_comments_updated_at on public.post_comments;
 create trigger trg_post_comments_updated_at
   before update on public.post_comments
   for each row execute function public.set_updated_at();
@@ -97,6 +99,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_likes_count on public.post_likes;
 create trigger trg_post_likes_count
   after insert or delete on public.post_likes
   for each row execute function public.sync_post_likes_count();
@@ -114,6 +117,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_comments_count on public.post_comments;
 create trigger trg_post_comments_count
   after insert or delete or update of deleted_at on public.post_comments
   for each row execute function public.sync_post_comments_count();
@@ -131,6 +135,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_saves_count on public.post_saves;
 create trigger trg_post_saves_count
   after insert or delete on public.post_saves
   for each row execute function public.sync_post_saves_count();

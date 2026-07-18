@@ -35,6 +35,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_order_status_history on public.orders;
 create trigger trg_order_status_history
   after update of status on public.orders
   for each row execute function public.record_order_status_change();

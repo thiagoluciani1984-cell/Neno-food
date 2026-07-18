@@ -3,7 +3,7 @@
 --        orders, order_items, payments, coupons, coupon_usage, notifications
 -- =====================================================================
 
-create table public.coupons (
+create table if not exists public.coupons (
   id               uuid primary key default gen_random_uuid(),
   restaurant_id    uuid not null references public.restaurants (id) on delete cascade,
   code             text not null,
@@ -23,7 +23,7 @@ create table public.coupons (
   unique (restaurant_id, code)
 );
 
-create table public.orders (
+create table if not exists public.orders (
   id                 uuid primary key default gen_random_uuid(),
   restaurant_id      uuid not null references public.restaurants (id) on delete cascade,
   customer_id        uuid references public.customers (id) on delete set null,
@@ -54,7 +54,7 @@ create table public.orders (
 );
 
 -- itens do pedido: GUARDAM SNAPSHOT de nome/preço (histórico imutável)
-create table public.order_items (
+create table if not exists public.order_items (
   id                 uuid primary key default gen_random_uuid(),
   order_id           uuid not null references public.orders (id) on delete cascade,
   product_id         uuid references public.products (id) on delete set null,
@@ -66,7 +66,7 @@ create table public.order_items (
   created_at         timestamptz not null default now()
 );
 
-create table public.payments (
+create table if not exists public.payments (
   id            uuid primary key default gen_random_uuid(),
   order_id      uuid not null references public.orders (id) on delete cascade,
   method        public.payment_method not null,
@@ -79,7 +79,7 @@ create table public.payments (
   updated_at    timestamptz not null default now()
 );
 
-create table public.coupon_usage (
+create table if not exists public.coupon_usage (
   id            uuid primary key default gen_random_uuid(),
   coupon_id     uuid not null references public.coupons (id) on delete cascade,
   customer_id   uuid references public.customers (id) on delete set null,
@@ -88,7 +88,7 @@ create table public.coupon_usage (
   used_at       timestamptz not null default now()
 );
 
-create table public.notifications (
+create table if not exists public.notifications (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references public.profiles (id) on delete cascade,
   type        public.notification_type not null default 'system',
@@ -100,6 +100,8 @@ create table public.notifications (
 );
 
 -- FKs adiadas de migrations anteriores (agora orders existe)
-alter table public.reviews
-  add constraint reviews_order_id_fkey
-  foreign key (order_id) references public.orders (id) on delete set null;
+do $$ begin
+  alter table public.reviews
+    add constraint reviews_order_id_fkey
+    foreign key (order_id) references public.orders (id) on delete set null;
+exception when duplicate_object then null; end $$;

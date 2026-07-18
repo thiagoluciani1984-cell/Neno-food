@@ -5,7 +5,7 @@
 -- Para regenerar: npm run db:build
 --
 -- Conteúdo: 27 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-18T00:47:19.919Z
+-- Gerado em: 2026-07-18T09:28:14.215Z
 -- =====================================================================
 
 
@@ -21,67 +21,87 @@ create extension if not exists "citext";           -- e-mails case-insensitive
 create extension if not exists "pg_trgm";          -- busca textual em produtos
 
 -- ─── Enums de domínio ────────────────────────────────────────────────
+-- Cada CREATE TYPE é envolvido num bloco que ignora "já existe" (42710),
+-- pra ser seguro rodar de novo num banco parcialmente migrado.
 
-create type public.user_role as enum (
-  'master_admin',
-  'restaurant',
-  'customer',
-  'driver'
-);
+do $$ begin
+  create type public.user_role as enum (
+    'master_admin',
+    'restaurant',
+    'customer',
+    'driver'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.restaurant_status as enum (
-  'pending',   -- aguardando aprovação do master admin
-  'active',
-  'blocked'
-);
+do $$ begin
+  create type public.restaurant_status as enum (
+    'pending',   -- aguardando aprovação do master admin
+    'active',
+    'blocked'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.order_type as enum (
-  'delivery',
-  'pickup',    -- retirada no balcão
-  'dine_in'    -- consumo local
-);
+do $$ begin
+  create type public.order_type as enum (
+    'delivery',
+    'pickup',    -- retirada no balcão
+    'dine_in'    -- consumo local
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.order_status as enum (
-  'received',
-  'confirmed',
-  'preparing',
-  'ready',
-  'out_for_delivery',
-  'delivered',
-  'cancelled'
-);
+do $$ begin
+  create type public.order_status as enum (
+    'received',
+    'confirmed',
+    'preparing',
+    'ready',
+    'out_for_delivery',
+    'delivered',
+    'cancelled'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.payment_method as enum (
-  'pix',
-  'cash',
-  'card',
-  'online'
-);
+do $$ begin
+  create type public.payment_method as enum (
+    'pix',
+    'cash',
+    'card',
+    'online'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.payment_status as enum (
-  'pending',
-  'paid',
-  'failed',
-  'refunded'
-);
+do $$ begin
+  create type public.payment_status as enum (
+    'pending',
+    'paid',
+    'failed',
+    'refunded'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.coupon_type as enum (
-  'percentage',
-  'fixed',
-  'free_shipping'
-);
+do $$ begin
+  create type public.coupon_type as enum (
+    'percentage',
+    'fixed',
+    'free_shipping'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.driver_status as enum (
-  'offline',
-  'available',
-  'busy'
-);
+do $$ begin
+  create type public.driver_status as enum (
+    'offline',
+    'available',
+    'busy'
+  );
+exception when duplicate_object then null; end $$;
 
-create type public.notification_type as enum (
-  'order_update',
-  'promotion',
-  'system'
-);
+do $$ begin
+  create type public.notification_type as enum (
+    'order_update',
+    'promotion',
+    'system'
+  );
+exception when duplicate_object then null; end $$;
 
 
 -- ─── 0002_core_tables.sql ─────────────────────────────────────────────────────────
@@ -91,7 +111,7 @@ create type public.notification_type as enum (
 -- =====================================================================
 
 -- ─── roles (catálogo de papéis / metadados de permissão) ─────────────
-create table public.roles (
+create table if not exists public.roles (
   key         public.user_role primary key,
   label       text not null,
   description text
@@ -101,12 +121,13 @@ insert into public.roles (key, label, description) values
   ('master_admin', 'Master Admin', 'Gerencia toda a plataforma'),
   ('restaurant',   'Restaurante',  'Gerencia seu próprio estabelecimento'),
   ('customer',     'Cliente',      'Faz pedidos e acompanha entregas'),
-  ('driver',       'Entregador',   'Realiza entregas');
+  ('driver',       'Entregador',   'Realiza entregas')
+on conflict (key) do nothing;
 
 -- ─── profiles (espelha auth.users) ───────────────────────────────────
 -- restaurant_id: para usuários do tipo 'restaurant'/'driver', indica a
 -- qual estabelecimento pertencem (base do isolamento multi-tenant).
-create table public.profiles (
+create table if not exists public.profiles (
   id            uuid primary key references auth.users (id) on delete cascade,
   role          public.user_role not null default 'customer',
   restaurant_id uuid, -- FK adicionada após restaurants (abaixo)
@@ -119,7 +140,7 @@ create table public.profiles (
 );
 
 -- ─── restaurants ─────────────────────────────────────────────────────
-create table public.restaurants (
+create table if not exists public.restaurants (
   id           uuid primary key default gen_random_uuid(),
   owner_id     uuid references public.profiles (id) on delete set null,
   name         text not null,
@@ -136,12 +157,14 @@ create table public.restaurants (
 );
 
 -- agora podemos amarrar profiles.restaurant_id
-alter table public.profiles
-  add constraint profiles_restaurant_id_fkey
-  foreign key (restaurant_id) references public.restaurants (id) on delete set null;
+do $$ begin
+  alter table public.profiles
+    add constraint profiles_restaurant_id_fkey
+    foreign key (restaurant_id) references public.restaurants (id) on delete set null;
+exception when duplicate_object then null; end $$;
 
 -- ─── restaurant_settings (1:1 com restaurants) ───────────────────────
-create table public.restaurant_settings (
+create table if not exists public.restaurant_settings (
   restaurant_id        uuid primary key references public.restaurants (id) on delete cascade,
   is_open              boolean not null default true,
   accepts_delivery     boolean not null default true,
@@ -174,7 +197,7 @@ create table public.restaurant_settings (
 -- 0003 · Catálogo: categories, products, product_images
 -- =====================================================================
 
-create table public.categories (
+create table if not exists public.categories (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   name          text not null,
@@ -188,7 +211,7 @@ create table public.categories (
   unique (restaurant_id, slug)
 );
 
-create table public.products (
+create table if not exists public.products (
   id              uuid primary key default gen_random_uuid(),
   restaurant_id   uuid not null references public.restaurants (id) on delete cascade,
   category_id     uuid references public.categories (id) on delete set null,
@@ -212,7 +235,7 @@ create table public.products (
 );
 
 -- galeria de imagens adicionais por produto
-create table public.product_images (
+create table if not exists public.product_images (
   id          uuid primary key default gen_random_uuid(),
   product_id  uuid not null references public.products (id) on delete cascade,
   url         text not null,
@@ -230,7 +253,7 @@ create table public.product_images (
 -- =====================================================================
 
 -- customer: dados de negócio do cliente (1:1 com profile do tipo customer)
-create table public.customers (
+create table if not exists public.customers (
   id              uuid primary key default gen_random_uuid(),
   profile_id      uuid not null unique references public.profiles (id) on delete cascade,
   loyalty_points  integer not null default 0 check (loyalty_points >= 0),
@@ -240,7 +263,7 @@ create table public.customers (
   updated_at      timestamptz not null default now()
 );
 
-create table public.addresses (
+create table if not exists public.addresses (
   id            uuid primary key default gen_random_uuid(),
   customer_id   uuid not null references public.customers (id) on delete cascade,
   label         text not null default 'Casa',
@@ -260,7 +283,7 @@ create table public.addresses (
   updated_at    timestamptz not null default now()
 );
 
-create table public.drivers (
+create table if not exists public.drivers (
   id              uuid primary key default gen_random_uuid(),
   profile_id      uuid not null unique references public.profiles (id) on delete cascade,
   restaurant_id   uuid references public.restaurants (id) on delete set null,
@@ -275,7 +298,7 @@ create table public.drivers (
 );
 
 -- favoritos do cliente (M:N customer <-> product)
-create table public.favorites (
+create table if not exists public.favorites (
   customer_id  uuid not null references public.customers (id) on delete cascade,
   product_id   uuid not null references public.products (id) on delete cascade,
   created_at   timestamptz not null default now(),
@@ -283,7 +306,7 @@ create table public.favorites (
 );
 
 -- avaliações do restaurante (e, opcionalmente, do pedido)
-create table public.reviews (
+create table if not exists public.reviews (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   customer_id   uuid not null references public.customers (id) on delete cascade,
@@ -302,7 +325,7 @@ create table public.reviews (
 --        orders, order_items, payments, coupons, coupon_usage, notifications
 -- =====================================================================
 
-create table public.coupons (
+create table if not exists public.coupons (
   id               uuid primary key default gen_random_uuid(),
   restaurant_id    uuid not null references public.restaurants (id) on delete cascade,
   code             text not null,
@@ -322,7 +345,7 @@ create table public.coupons (
   unique (restaurant_id, code)
 );
 
-create table public.orders (
+create table if not exists public.orders (
   id                 uuid primary key default gen_random_uuid(),
   restaurant_id      uuid not null references public.restaurants (id) on delete cascade,
   customer_id        uuid references public.customers (id) on delete set null,
@@ -353,7 +376,7 @@ create table public.orders (
 );
 
 -- itens do pedido: GUARDAM SNAPSHOT de nome/preço (histórico imutável)
-create table public.order_items (
+create table if not exists public.order_items (
   id                 uuid primary key default gen_random_uuid(),
   order_id           uuid not null references public.orders (id) on delete cascade,
   product_id         uuid references public.products (id) on delete set null,
@@ -365,7 +388,7 @@ create table public.order_items (
   created_at         timestamptz not null default now()
 );
 
-create table public.payments (
+create table if not exists public.payments (
   id            uuid primary key default gen_random_uuid(),
   order_id      uuid not null references public.orders (id) on delete cascade,
   method        public.payment_method not null,
@@ -378,7 +401,7 @@ create table public.payments (
   updated_at    timestamptz not null default now()
 );
 
-create table public.coupon_usage (
+create table if not exists public.coupon_usage (
   id            uuid primary key default gen_random_uuid(),
   coupon_id     uuid not null references public.coupons (id) on delete cascade,
   customer_id   uuid references public.customers (id) on delete set null,
@@ -387,7 +410,7 @@ create table public.coupon_usage (
   used_at       timestamptz not null default now()
 );
 
-create table public.notifications (
+create table if not exists public.notifications (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references public.profiles (id) on delete cascade,
   type        public.notification_type not null default 'system',
@@ -399,9 +422,11 @@ create table public.notifications (
 );
 
 -- FKs adiadas de migrations anteriores (agora orders existe)
-alter table public.reviews
-  add constraint reviews_order_id_fkey
-  foreign key (order_id) references public.orders (id) on delete set null;
+do $$ begin
+  alter table public.reviews
+    add constraint reviews_order_id_fkey
+    foreign key (order_id) references public.orders (id) on delete set null;
+exception when duplicate_object then null; end $$;
 
 
 -- ─── 0006_indexes.sql ─────────────────────────────────────────────────────────
@@ -412,46 +437,46 @@ alter table public.reviews
 -- =====================================================================
 
 -- profiles
-create index idx_profiles_role on public.profiles (role);
-create index idx_profiles_restaurant on public.profiles (restaurant_id);
+create index if not exists idx_profiles_role on public.profiles (role);
+create index if not exists idx_profiles_restaurant on public.profiles (restaurant_id);
 
 -- restaurants
-create index idx_restaurants_status on public.restaurants (status);
+create index if not exists idx_restaurants_status on public.restaurants (status);
 
 -- catálogo
-create index idx_categories_restaurant on public.categories (restaurant_id);
-create index idx_categories_active on public.categories (restaurant_id, is_active) where deleted_at is null;
+create index if not exists idx_categories_restaurant on public.categories (restaurant_id);
+create index if not exists idx_categories_active on public.categories (restaurant_id, is_active) where deleted_at is null;
 
-create index idx_products_restaurant on public.products (restaurant_id);
-create index idx_products_category on public.products (category_id);
-create index idx_products_available on public.products (restaurant_id, is_available) where deleted_at is null;
-create index idx_products_name_trgm on public.products using gin (name gin_trgm_ops);
+create index if not exists idx_products_restaurant on public.products (restaurant_id);
+create index if not exists idx_products_category on public.products (category_id);
+create index if not exists idx_products_available on public.products (restaurant_id, is_available) where deleted_at is null;
+create index if not exists idx_products_name_trgm on public.products using gin (name gin_trgm_ops);
 
 -- clientes / delivery
-create index idx_addresses_customer on public.addresses (customer_id);
-create index idx_drivers_restaurant on public.drivers (restaurant_id);
-create index idx_drivers_status on public.drivers (status);
+create index if not exists idx_addresses_customer on public.addresses (customer_id);
+create index if not exists idx_drivers_restaurant on public.drivers (restaurant_id);
+create index if not exists idx_drivers_status on public.drivers (status);
 
 -- pedidos (consultas mais quentes do KDS e relatórios)
-create index idx_orders_restaurant on public.orders (restaurant_id);
-create index idx_orders_status on public.orders (restaurant_id, status);
-create index idx_orders_customer on public.orders (customer_id);
-create index idx_orders_driver on public.orders (driver_id);
-create index idx_orders_created on public.orders (restaurant_id, created_at desc);
+create index if not exists idx_orders_restaurant on public.orders (restaurant_id);
+create index if not exists idx_orders_status on public.orders (restaurant_id, status);
+create index if not exists idx_orders_customer on public.orders (customer_id);
+create index if not exists idx_orders_driver on public.orders (driver_id);
+create index if not exists idx_orders_created on public.orders (restaurant_id, created_at desc);
 
-create index idx_order_items_order on public.order_items (order_id);
-create index idx_order_items_product on public.order_items (product_id);
+create index if not exists idx_order_items_order on public.order_items (order_id);
+create index if not exists idx_order_items_product on public.order_items (product_id);
 
 -- pagamentos / cupons
-create index idx_payments_order on public.payments (order_id);
-create index idx_coupons_restaurant on public.coupons (restaurant_id);
-create index idx_coupon_usage_coupon on public.coupon_usage (coupon_id);
+create index if not exists idx_payments_order on public.payments (order_id);
+create index if not exists idx_coupons_restaurant on public.coupons (restaurant_id);
+create index if not exists idx_coupon_usage_coupon on public.coupon_usage (coupon_id);
 
 -- notificações
-create index idx_notifications_user on public.notifications (user_id, read_at);
+create index if not exists idx_notifications_user on public.notifications (user_id, read_at);
 
 -- avaliações
-create index idx_reviews_restaurant on public.reviews (restaurant_id);
+create index if not exists idx_reviews_restaurant on public.reviews (restaurant_id);
 
 
 -- ─── 0007_functions_triggers.sql ─────────────────────────────────────────────────────────
@@ -481,6 +506,7 @@ begin
     'customers','addresses','drivers','coupons','orders','payments'
   ]
   loop
+    execute format('drop trigger if exists trg_%1$s_updated_at on public.%1$s;', t);
     execute format(
       'create trigger trg_%1$s_updated_at
          before update on public.%1$s
@@ -571,6 +597,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -628,10 +655,12 @@ alter table public.coupon_usage         enable row level security;
 alter table public.notifications        enable row level security;
 
 -- ─── roles (catálogo público de leitura) ─────────────────────────────
+drop policy if exists "roles_read_all" on public.roles;
 create policy "roles_read_all" on public.roles
   for select using (true);
 
 -- ─── profiles ────────────────────────────────────────────────────────
+drop policy if exists "profiles_select" on public.profiles;
 create policy "profiles_select" on public.profiles
   for select using (
     id = auth.uid()
@@ -639,14 +668,17 @@ create policy "profiles_select" on public.profiles
     or (restaurant_id is not null and restaurant_id = public.current_restaurant_id())
   );
 
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
   for update using (id = auth.uid() or public.is_master_admin())
   with check (id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "profiles_admin_insert" on public.profiles;
 create policy "profiles_admin_insert" on public.profiles
   for insert with check (public.is_master_admin());
 
 -- ─── restaurants ─────────────────────────────────────────────────────
+drop policy if exists "restaurants_select" on public.restaurants;
 create policy "restaurants_select" on public.restaurants
   for select using (
     status = 'active'
@@ -655,9 +687,11 @@ create policy "restaurants_select" on public.restaurants
     or public.is_master_admin()
   );
 
+drop policy if exists "restaurants_insert" on public.restaurants;
 create policy "restaurants_insert" on public.restaurants
   for insert with check (owner_id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "restaurants_update" on public.restaurants;
 create policy "restaurants_update" on public.restaurants
   for update using (
     owner_id = auth.uid()
@@ -671,6 +705,7 @@ create policy "restaurants_update" on public.restaurants
   );
 
 -- ─── restaurant_settings ─────────────────────────────────────────────
+drop policy if exists "settings_select" on public.restaurant_settings;
 create policy "settings_select" on public.restaurant_settings
   for select using (
     restaurant_id in (select id from public.restaurants where status = 'active')
@@ -678,6 +713,7 @@ create policy "settings_select" on public.restaurant_settings
     or public.is_master_admin()
   );
 
+drop policy if exists "settings_write" on public.restaurant_settings;
 create policy "settings_write" on public.restaurant_settings
   for all using (
     restaurant_id = public.current_restaurant_id() or public.is_master_admin()
@@ -689,6 +725,7 @@ create policy "settings_write" on public.restaurant_settings
 -- ─── helper macro de leitura pública de restaurante ativo ────────────
 -- (categorias/produtos públicos quando o restaurante está ativo)
 
+drop policy if exists "categories_public_read" on public.categories;
 create policy "categories_public_read" on public.categories
   for select using (
     (deleted_at is null
@@ -697,10 +734,12 @@ create policy "categories_public_read" on public.categories
     or public.is_master_admin()
   );
 
+drop policy if exists "categories_write" on public.categories;
 create policy "categories_write" on public.categories
   for all using (restaurant_id = public.current_restaurant_id() or public.is_master_admin())
   with check (restaurant_id = public.current_restaurant_id() or public.is_master_admin());
 
+drop policy if exists "products_public_read" on public.products;
 create policy "products_public_read" on public.products
   for select using (
     (deleted_at is null
@@ -709,15 +748,18 @@ create policy "products_public_read" on public.products
     or public.is_master_admin()
   );
 
+drop policy if exists "products_write" on public.products;
 create policy "products_write" on public.products
   for all using (restaurant_id = public.current_restaurant_id() or public.is_master_admin())
   with check (restaurant_id = public.current_restaurant_id() or public.is_master_admin());
 
+drop policy if exists "product_images_read" on public.product_images;
 create policy "product_images_read" on public.product_images
   for select using (
     product_id in (select id from public.products) -- visibilidade herda de products via RLS
   );
 
+drop policy if exists "product_images_write" on public.product_images;
 create policy "product_images_write" on public.product_images
   for all using (
     exists (
@@ -735,19 +777,23 @@ create policy "product_images_write" on public.product_images
   );
 
 -- ─── customers ───────────────────────────────────────────────────────
+drop policy if exists "customers_select_own" on public.customers;
 create policy "customers_select_own" on public.customers
   for select using (profile_id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "customers_update_own" on public.customers;
 create policy "customers_update_own" on public.customers
   for update using (profile_id = auth.uid() or public.is_master_admin())
   with check (profile_id = auth.uid() or public.is_master_admin());
 
 -- ─── addresses ───────────────────────────────────────────────────────
+drop policy if exists "addresses_own" on public.addresses;
 create policy "addresses_own" on public.addresses
   for all using (customer_id = public.current_customer_id() or public.is_master_admin())
   with check (customer_id = public.current_customer_id() or public.is_master_admin());
 
 -- ─── drivers ─────────────────────────────────────────────────────────
+drop policy if exists "drivers_select" on public.drivers;
 create policy "drivers_select" on public.drivers
   for select using (
     profile_id = auth.uid()
@@ -755,6 +801,7 @@ create policy "drivers_select" on public.drivers
     or public.is_master_admin()
   );
 
+drop policy if exists "drivers_update" on public.drivers;
 create policy "drivers_update" on public.drivers
   for update using (
     profile_id = auth.uid()
@@ -768,30 +815,37 @@ create policy "drivers_update" on public.drivers
   );
 
 -- ─── favorites ───────────────────────────────────────────────────────
+drop policy if exists "favorites_own" on public.favorites;
 create policy "favorites_own" on public.favorites
   for all using (customer_id = public.current_customer_id())
   with check (customer_id = public.current_customer_id());
 
 -- ─── reviews ─────────────────────────────────────────────────────────
+drop policy if exists "reviews_public_read" on public.reviews;
 create policy "reviews_public_read" on public.reviews
   for select using (true);
 
+drop policy if exists "reviews_insert_own" on public.reviews;
 create policy "reviews_insert_own" on public.reviews
   for insert with check (customer_id = public.current_customer_id());
 
+drop policy if exists "reviews_modify_own" on public.reviews;
 create policy "reviews_modify_own" on public.reviews
   for update using (customer_id = public.current_customer_id() or public.is_master_admin())
   with check (customer_id = public.current_customer_id() or public.is_master_admin());
 
+drop policy if exists "reviews_delete_own" on public.reviews;
 create policy "reviews_delete_own" on public.reviews
   for delete using (customer_id = public.current_customer_id() or public.is_master_admin());
 
 -- ─── coupons (apenas staff/master; validação pública via server action) ─
+drop policy if exists "coupons_staff" on public.coupons;
 create policy "coupons_staff" on public.coupons
   for all using (restaurant_id = public.current_restaurant_id() or public.is_master_admin())
   with check (restaurant_id = public.current_restaurant_id() or public.is_master_admin());
 
 -- ─── orders ──────────────────────────────────────────────────────────
+drop policy if exists "orders_select" on public.orders;
 create policy "orders_select" on public.orders
   for select using (
     customer_id = public.current_customer_id()
@@ -800,6 +854,7 @@ create policy "orders_select" on public.orders
     or public.is_master_admin()
   );
 
+drop policy if exists "orders_insert" on public.orders;
 create policy "orders_insert" on public.orders
   for insert with check (
     customer_id = public.current_customer_id()
@@ -807,6 +862,7 @@ create policy "orders_insert" on public.orders
     or public.is_master_admin()
   );
 
+drop policy if exists "orders_update" on public.orders;
 create policy "orders_update" on public.orders
   for update using (
     restaurant_id = public.current_restaurant_id()
@@ -820,6 +876,7 @@ create policy "orders_update" on public.orders
   );
 
 -- ─── order_items (visibilidade herda do pedido) ──────────────────────
+drop policy if exists "order_items_select" on public.order_items;
 create policy "order_items_select" on public.order_items
   for select using (
     order_id in (
@@ -831,6 +888,7 @@ create policy "order_items_select" on public.order_items
     )
   );
 
+drop policy if exists "order_items_insert" on public.order_items;
 create policy "order_items_insert" on public.order_items
   for insert with check (
     order_id in (
@@ -842,6 +900,7 @@ create policy "order_items_insert" on public.order_items
   );
 
 -- ─── payments ────────────────────────────────────────────────────────
+drop policy if exists "payments_access" on public.payments;
 create policy "payments_access" on public.payments
   for all using (
     order_id in (
@@ -861,6 +920,7 @@ create policy "payments_access" on public.payments
   );
 
 -- ─── coupon_usage ────────────────────────────────────────────────────
+drop policy if exists "coupon_usage_access" on public.coupon_usage;
 create policy "coupon_usage_access" on public.coupon_usage
   for all using (
     customer_id = public.current_customer_id()
@@ -874,9 +934,11 @@ create policy "coupon_usage_access" on public.coupon_usage
   );
 
 -- ─── notifications ───────────────────────────────────────────────────
+drop policy if exists "notifications_own" on public.notifications;
 create policy "notifications_own" on public.notifications
   for select using (user_id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications
   for update using (user_id = auth.uid())
   with check (user_id = auth.uid());
@@ -897,19 +959,23 @@ values ('restaurant-assets', 'restaurant-assets', true)
 on conflict (id) do nothing;
 
 -- Leitura pública das imagens
+drop policy if exists "public_read_product_images" on storage.objects;
 create policy "public_read_product_images" on storage.objects
   for select using (bucket_id in ('product-images', 'restaurant-assets'));
 
 -- Upload/edição/remoção apenas por usuários autenticados de restaurante/master.
 -- (validação fina do tenant é feita na camada de aplicação via path = restaurant_id/...)
+drop policy if exists "staff_write_product_images" on storage.objects;
 create policy "staff_write_product_images" on storage.objects
   for insert to authenticated
   with check (bucket_id in ('product-images', 'restaurant-assets'));
 
+drop policy if exists "staff_update_product_images" on storage.objects;
 create policy "staff_update_product_images" on storage.objects
   for update to authenticated
   using (bucket_id in ('product-images', 'restaurant-assets'));
 
+drop policy if exists "staff_delete_product_images" on storage.objects;
 create policy "staff_delete_product_images" on storage.objects
   for delete to authenticated
   using (bucket_id in ('product-images', 'restaurant-assets'));
@@ -922,9 +988,29 @@ create policy "staff_delete_product_images" on storage.objects
 -- =====================================================================
 
 -- KDS (cozinha) e tracking do cliente dependem de mudanças em orders.
-alter publication supabase_realtime add table public.orders;
-alter publication supabase_realtime add table public.order_items;
-alter publication supabase_realtime add table public.notifications;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'
+  ) then
+    alter publication supabase_realtime add table public.orders;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'order_items'
+  ) then
+    alter publication supabase_realtime add table public.order_items;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;
 
 
 -- ─── 0011_enums_extended.sql ─────────────────────────────────────────────────────────
@@ -1101,10 +1187,12 @@ create table if not exists public.restaurant_followers (
 );
 
 -- ─── Trigger updated_at ──────────────────────────────────────────────
+drop trigger if exists trg_restaurant_staff_updated_at on public.restaurant_staff;
 create trigger trg_restaurant_staff_updated_at
   before update on public.restaurant_staff
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_restaurant_documents_updated_at on public.restaurant_documents;
 create trigger trg_restaurant_documents_updated_at
   before update on public.restaurant_documents
   for each row execute function public.set_updated_at();
@@ -1203,10 +1291,12 @@ create table if not exists public.post_reports (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_posts_updated_at on public.posts;
 create trigger trg_posts_updated_at
   before update on public.posts
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_post_comments_updated_at on public.post_comments;
 create trigger trg_post_comments_updated_at
   before update on public.post_comments
   for each row execute function public.set_updated_at();
@@ -1225,6 +1315,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_likes_count on public.post_likes;
 create trigger trg_post_likes_count
   after insert or delete on public.post_likes
   for each row execute function public.sync_post_likes_count();
@@ -1242,6 +1333,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_comments_count on public.post_comments;
 create trigger trg_post_comments_count
   after insert or delete or update of deleted_at on public.post_comments
   for each row execute function public.sync_post_comments_count();
@@ -1259,6 +1351,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_post_saves_count on public.post_saves;
 create trigger trg_post_saves_count
   after insert or delete on public.post_saves
   for each row execute function public.sync_post_saves_count();
@@ -1361,10 +1454,12 @@ create table if not exists public.driver_locations (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_driver_documents_updated_at on public.driver_documents;
 create trigger trg_driver_documents_updated_at
   before update on public.driver_documents
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_driver_vehicles_updated_at on public.driver_vehicles;
 create trigger trg_driver_vehicles_updated_at
   before update on public.driver_vehicles
   for each row execute function public.set_updated_at();
@@ -1411,6 +1506,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_order_status_history on public.orders;
 create trigger trg_order_status_history
   after update of status on public.orders
   for each row execute function public.record_order_status_change();
@@ -1537,10 +1633,12 @@ create table if not exists public.image_library (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_product_options_updated_at on public.product_options;
 create trigger trg_product_options_updated_at
   before update on public.product_options
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_product_option_items_updated_at on public.product_option_items;
 create trigger trg_product_option_items_updated_at
   before update on public.product_option_items
   for each row execute function public.set_updated_at();
@@ -1616,10 +1714,12 @@ create table if not exists public.refunds (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_support_tickets_updated_at on public.support_tickets;
 create trigger trg_support_tickets_updated_at
   before update on public.support_tickets
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_refunds_updated_at on public.refunds;
 create trigger trg_refunds_updated_at
   before update on public.refunds
   for each row execute function public.set_updated_at();
@@ -1660,6 +1760,7 @@ alter table public.ticket_messages         enable row level security;
 alter table public.refunds                 enable row level security;
 
 -- ─── restaurant_staff ────────────────────────────────────────────────
+drop policy if exists "rstaff_select" on public.restaurant_staff;
 create policy "rstaff_select" on public.restaurant_staff
   for select using (
     restaurant_id = public.current_restaurant_id()
@@ -1667,12 +1768,14 @@ create policy "rstaff_select" on public.restaurant_staff
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_insert" on public.restaurant_staff;
 create policy "rstaff_insert" on public.restaurant_staff
   for insert with check (
     restaurant_id = public.current_restaurant_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_update" on public.restaurant_staff;
 create policy "rstaff_update" on public.restaurant_staff
   for update using (
     restaurant_id = public.current_restaurant_id()
@@ -1683,6 +1786,7 @@ create policy "rstaff_update" on public.restaurant_staff
     or public.is_master_admin()
   );
 
+drop policy if exists "rstaff_delete" on public.restaurant_staff;
 create policy "rstaff_delete" on public.restaurant_staff
   for delete using (
     restaurant_id = public.current_restaurant_id()
@@ -1690,12 +1794,14 @@ create policy "rstaff_delete" on public.restaurant_staff
   );
 
 -- ─── restaurant_documents (privados — service_role para signed URL) ──
+drop policy if exists "rdocs_select" on public.restaurant_documents;
 create policy "rdocs_select" on public.restaurant_documents
   for select using (
     restaurant_id = public.current_restaurant_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "rdocs_write" on public.restaurant_documents;
 create policy "rdocs_write" on public.restaurant_documents
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -1708,14 +1814,17 @@ create policy "rdocs_write" on public.restaurant_documents
 
 -- ─── restaurant_followers ─────────────────────────────────────────────
 -- Qualquer autenticado vê quem segue um restaurante (count público)
+drop policy if exists "rfollowers_select" on public.restaurant_followers;
 create policy "rfollowers_select" on public.restaurant_followers
   for select using (true);
 
+drop policy if exists "rfollowers_write" on public.restaurant_followers;
 create policy "rfollowers_write" on public.restaurant_followers
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── posts ───────────────────────────────────────────────────────────
+drop policy if exists "posts_public_read" on public.posts;
 create policy "posts_public_read" on public.posts
   for select using (
     deleted_at is null
@@ -1726,6 +1835,7 @@ create policy "posts_public_read" on public.posts
     )
   );
 
+drop policy if exists "posts_write" on public.posts;
 create policy "posts_write" on public.posts
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -1738,11 +1848,13 @@ create policy "posts_write" on public.posts
   );
 
 -- ─── post_images ─────────────────────────────────────────────────────
+drop policy if exists "post_images_read" on public.post_images;
 create policy "post_images_read" on public.post_images
   for select using (
     post_id in (select id from public.posts where deleted_at is null)
   );
 
+drop policy if exists "post_images_write" on public.post_images;
 create policy "post_images_write" on public.post_images
   for all using (
     exists (
@@ -1760,46 +1872,57 @@ create policy "post_images_write" on public.post_images
   );
 
 -- ─── post_likes ──────────────────────────────────────────────────────
+drop policy if exists "post_likes_read" on public.post_likes;
 create policy "post_likes_read" on public.post_likes
   for select using (true);
 
+drop policy if exists "post_likes_write" on public.post_likes;
 create policy "post_likes_write" on public.post_likes
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── post_comments ───────────────────────────────────────────────────
+drop policy if exists "post_comments_read" on public.post_comments;
 create policy "post_comments_read" on public.post_comments
   for select using (deleted_at is null);
 
+drop policy if exists "post_comments_insert" on public.post_comments;
 create policy "post_comments_insert" on public.post_comments
   for insert with check (author_id = auth.uid());
 
+drop policy if exists "post_comments_update" on public.post_comments;
 create policy "post_comments_update" on public.post_comments
   for update using (author_id = auth.uid() or public.is_master_admin())
   with check (author_id = auth.uid() or public.is_master_admin());
 
+drop policy if exists "post_comments_delete" on public.post_comments;
 create policy "post_comments_delete" on public.post_comments
   for delete using (author_id = auth.uid() or public.is_master_admin());
 
 -- ─── post_saves ──────────────────────────────────────────────────────
+drop policy if exists "post_saves_own" on public.post_saves;
 create policy "post_saves_own" on public.post_saves
   for all using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
 
 -- ─── post_reports ────────────────────────────────────────────────────
+drop policy if exists "post_reports_insert" on public.post_reports;
 create policy "post_reports_insert" on public.post_reports
   for insert with check (reporter_id = auth.uid());
 
+drop policy if exists "post_reports_admin" on public.post_reports;
 create policy "post_reports_admin" on public.post_reports
   for select using (public.is_master_admin());
 
 -- ─── driver_documents (privados) ──────────────────────────────────────
+drop policy if exists "ddocs_select" on public.driver_documents;
 create policy "ddocs_select" on public.driver_documents
   for select using (
     driver_id = public.current_driver_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "ddocs_write" on public.driver_documents;
 create policy "ddocs_write" on public.driver_documents
   for all using (
     driver_id = public.current_driver_id()
@@ -1811,6 +1934,7 @@ create policy "ddocs_write" on public.driver_documents
   );
 
 -- ─── driver_vehicles ─────────────────────────────────────────────────
+drop policy if exists "dvehicles_select" on public.driver_vehicles;
 create policy "dvehicles_select" on public.driver_vehicles
   for select using (
     driver_id = public.current_driver_id()
@@ -1821,25 +1945,30 @@ create policy "dvehicles_select" on public.driver_vehicles
     or public.is_master_admin()
   );
 
+drop policy if exists "dvehicles_write" on public.driver_vehicles;
 create policy "dvehicles_write" on public.driver_vehicles
   for all using (driver_id = public.current_driver_id() or public.is_master_admin())
   with check (driver_id = public.current_driver_id() or public.is_master_admin());
 
 -- ─── driver_verifications ────────────────────────────────────────────
+drop policy if exists "dverif_select" on public.driver_verifications;
 create policy "dverif_select" on public.driver_verifications
   for select using (
     driver_id = public.current_driver_id()
     or public.is_master_admin()
   );
 
+drop policy if exists "dverif_admin_write" on public.driver_verifications;
 create policy "dverif_admin_write" on public.driver_verifications
   for all using (public.is_master_admin())
   with check (public.is_master_admin());
 
 -- ─── driver_locations ────────────────────────────────────────────────
+drop policy if exists "dloc_insert" on public.driver_locations;
 create policy "dloc_insert" on public.driver_locations
   for insert with check (driver_id = public.current_driver_id());
 
+drop policy if exists "dloc_select" on public.driver_locations;
 create policy "dloc_select" on public.driver_locations
   for select using (
     driver_id = public.current_driver_id()
@@ -1851,6 +1980,7 @@ create policy "dloc_select" on public.driver_locations
   );
 
 -- ─── order_status_history ────────────────────────────────────────────
+drop policy if exists "osh_select" on public.order_status_history;
 create policy "osh_select" on public.order_status_history
   for select using (
     order_id in (
@@ -1863,9 +1993,11 @@ create policy "osh_select" on public.order_status_history
   );
 
 -- ─── delivery_tracking ───────────────────────────────────────────────
+drop policy if exists "dtrack_insert" on public.delivery_tracking;
 create policy "dtrack_insert" on public.delivery_tracking
   for insert with check (driver_id = public.current_driver_id());
 
+drop policy if exists "dtrack_select" on public.delivery_tracking;
 create policy "dtrack_select" on public.delivery_tracking
   for select using (
     driver_id = public.current_driver_id()
@@ -1879,6 +2011,7 @@ create policy "dtrack_select" on public.delivery_tracking
 
 -- ─── delivery_codes ──────────────────────────────────────────────────
 -- Código gerado pelo server (service_role). Cliente vê o próprio, entregador confirma.
+drop policy if exists "dcodes_select" on public.delivery_codes;
 create policy "dcodes_select" on public.delivery_codes
   for select using (
     order_id in (
@@ -1890,11 +2023,13 @@ create policy "dcodes_select" on public.delivery_codes
   );
 
 -- ─── product_options / product_option_items ──────────────────────────
+drop policy if exists "poptions_public_read" on public.product_options;
 create policy "poptions_public_read" on public.product_options
   for select using (
     product_id in (select id from public.products)
   );
 
+drop policy if exists "poptions_write" on public.product_options;
 create policy "poptions_write" on public.product_options
   for all using (
     product_id in (
@@ -1911,11 +2046,13 @@ create policy "poptions_write" on public.product_options
     or public.is_master_admin()
   );
 
+drop policy if exists "poption_items_public_read" on public.product_option_items;
 create policy "poption_items_public_read" on public.product_option_items
   for select using (
     option_id in (select id from public.product_options)
   );
 
+drop policy if exists "poption_items_write" on public.product_option_items;
 create policy "poption_items_write" on public.product_option_items
   for all using (
     option_id in (
@@ -1935,6 +2072,7 @@ create policy "poption_items_write" on public.product_option_items
   );
 
 -- ─── order_item_options (visibilidade herda do pedido) ───────────────
+drop policy if exists "oio_select" on public.order_item_options;
 create policy "oio_select" on public.order_item_options
   for select using (
     order_item_id in (
@@ -1948,6 +2086,7 @@ create policy "oio_select" on public.order_item_options
   );
 
 -- ─── image_library ───────────────────────────────────────────────────
+drop policy if exists "imglib_public_read" on public.image_library;
 create policy "imglib_public_read" on public.image_library
   for select using (
     is_approved = true
@@ -1955,6 +2094,7 @@ create policy "imglib_public_read" on public.image_library
     or public.is_master_admin()
   );
 
+drop policy if exists "imglib_write" on public.image_library;
 create policy "imglib_write" on public.image_library
   for all using (
     restaurant_id = public.current_restaurant_id()
@@ -1966,12 +2106,14 @@ create policy "imglib_write" on public.image_library
   );
 
 -- ─── audit_logs (admin only; imutável) ───────────────────────────────
+drop policy if exists "audit_admin_select" on public.audit_logs;
 create policy "audit_admin_select" on public.audit_logs
   for select using (public.is_master_admin());
 
 -- INSERT via service_role (sem política de insert — service_role ignora RLS)
 
 -- ─── support_tickets ─────────────────────────────────────────────────
+drop policy if exists "tickets_select" on public.support_tickets;
 create policy "tickets_select" on public.support_tickets
   for select using (
     reporter_id = auth.uid()
@@ -1979,14 +2121,17 @@ create policy "tickets_select" on public.support_tickets
     or public.is_master_admin()
   );
 
+drop policy if exists "tickets_insert" on public.support_tickets;
 create policy "tickets_insert" on public.support_tickets
   for insert with check (reporter_id = auth.uid());
 
+drop policy if exists "tickets_update" on public.support_tickets;
 create policy "tickets_update" on public.support_tickets
   for update using (assigned_to = auth.uid() or public.is_master_admin())
   with check (assigned_to = auth.uid() or public.is_master_admin());
 
 -- ─── ticket_messages ─────────────────────────────────────────────────
+drop policy if exists "tmsg_select" on public.ticket_messages;
 create policy "tmsg_select" on public.ticket_messages
   for select using (
     ticket_id in (
@@ -1998,6 +2143,7 @@ create policy "tmsg_select" on public.ticket_messages
     and (is_internal = false or public.is_master_admin())
   );
 
+drop policy if exists "tmsg_insert" on public.ticket_messages;
 create policy "tmsg_insert" on public.ticket_messages
   for insert with check (
     author_id = auth.uid()
@@ -2010,6 +2156,7 @@ create policy "tmsg_insert" on public.ticket_messages
   );
 
 -- ─── refunds ─────────────────────────────────────────────────────────
+drop policy if exists "refunds_select" on public.refunds;
 create policy "refunds_select" on public.refunds
   for select using (
     requested_by = auth.uid()
@@ -2019,12 +2166,14 @@ create policy "refunds_select" on public.refunds
     or public.is_master_admin()
   );
 
+drop policy if exists "refunds_insert" on public.refunds;
 create policy "refunds_insert" on public.refunds
   for insert with check (
     requested_by = auth.uid()
     or public.is_master_admin()
   );
 
+drop policy if exists "refunds_update" on public.refunds;
 create policy "refunds_update" on public.refunds
   for update using (public.is_master_admin())
   with check (public.is_master_admin());
@@ -2204,6 +2353,7 @@ alter table public.reviews
 -- RLS
 alter table public.restaurant_favorites enable row level security;
 
+drop policy if exists "rest_fav_own" on public.restaurant_favorites;
 create policy "rest_fav_own"
   on public.restaurant_favorites
   using (
@@ -2235,6 +2385,7 @@ create index if not exists idx_reviews_restaurant_rating
 -- Entregador pode fazer upload e ler os próprios docs.
 -- Admin (service_role) lê via signed URL gerada no servidor.
 
+drop policy if exists "driver_docs_insert" on storage.objects;
 create policy "driver_docs_insert"
   on storage.objects for insert
   to authenticated
@@ -2249,6 +2400,7 @@ create policy "driver_docs_insert"
     )
   );
 
+drop policy if exists "driver_docs_select" on storage.objects;
 create policy "driver_docs_select"
   on storage.objects for select
   to authenticated
@@ -2268,6 +2420,7 @@ create policy "driver_docs_select"
     )
   );
 
+drop policy if exists "driver_docs_delete" on storage.objects;
 create policy "driver_docs_delete"
   on storage.objects for delete
   to authenticated
@@ -2305,6 +2458,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_driver_profile_created on public.profiles;
 create trigger on_driver_profile_created
   after insert on public.profiles
   for each row execute function public.handle_new_driver();
@@ -2374,6 +2528,7 @@ create index if not exists idx_orders_guest_token
 -- motorista, pois driver_id ainda é null.
 -- =====================================================================
 
+drop policy if exists "orders_select_available_pool" on public.orders;
 create policy "orders_select_available_pool" on public.orders
   for select using (
     status = 'ready'

@@ -23,6 +23,7 @@ begin
     'customers','addresses','drivers','coupons','orders','payments'
   ]
   loop
+    execute format('drop trigger if exists trg_%1$s_updated_at on public.%1$s;', t);
     execute format(
       'create trigger trg_%1$s_updated_at
          before update on public.%1$s
@@ -113,6 +114,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();

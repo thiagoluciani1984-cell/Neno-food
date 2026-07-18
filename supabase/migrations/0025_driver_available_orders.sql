@@ -5,6 +5,7 @@
 -- motorista, pois driver_id ainda é null.
 -- =====================================================================
 
+drop policy if exists "orders_select_available_pool" on public.orders;
 create policy "orders_select_available_pool" on public.orders
   for select using (
     status = 'ready'

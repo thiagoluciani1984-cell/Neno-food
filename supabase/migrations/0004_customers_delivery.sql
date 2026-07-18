@@ -4,7 +4,7 @@
 -- =====================================================================
 
 -- customer: dados de negócio do cliente (1:1 com profile do tipo customer)
-create table public.customers (
+create table if not exists public.customers (
   id              uuid primary key default gen_random_uuid(),
   profile_id      uuid not null unique references public.profiles (id) on delete cascade,
   loyalty_points  integer not null default 0 check (loyalty_points >= 0),
@@ -14,7 +14,7 @@ create table public.customers (
   updated_at      timestamptz not null default now()
 );
 
-create table public.addresses (
+create table if not exists public.addresses (
   id            uuid primary key default gen_random_uuid(),
   customer_id   uuid not null references public.customers (id) on delete cascade,
   label         text not null default 'Casa',
@@ -34,7 +34,7 @@ create table public.addresses (
   updated_at    timestamptz not null default now()
 );
 
-create table public.drivers (
+create table if not exists public.drivers (
   id              uuid primary key default gen_random_uuid(),
   profile_id      uuid not null unique references public.profiles (id) on delete cascade,
   restaurant_id   uuid references public.restaurants (id) on delete set null,
@@ -49,7 +49,7 @@ create table public.drivers (
 );
 
 -- favoritos do cliente (M:N customer <-> product)
-create table public.favorites (
+create table if not exists public.favorites (
   customer_id  uuid not null references public.customers (id) on delete cascade,
   product_id   uuid not null references public.products (id) on delete cascade,
   created_at   timestamptz not null default now(),
@@ -57,7 +57,7 @@ create table public.favorites (
 );
 
 -- avaliações do restaurante (e, opcionalmente, do pedido)
-create table public.reviews (
+create table if not exists public.reviews (
   id            uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   customer_id   uuid not null references public.customers (id) on delete cascade,

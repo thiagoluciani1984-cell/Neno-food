@@ -93,10 +93,12 @@ create table if not exists public.driver_locations (
 );
 
 -- ─── Triggers ────────────────────────────────────────────────────────
+drop trigger if exists trg_driver_documents_updated_at on public.driver_documents;
 create trigger trg_driver_documents_updated_at
   before update on public.driver_documents
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_driver_vehicles_updated_at on public.driver_vehicles;
 create trigger trg_driver_vehicles_updated_at
   before update on public.driver_vehicles
   for each row execute function public.set_updated_at();
