@@ -222,20 +222,15 @@ export async function createOrderAction(
     .eq("restaurant_id", data.restaurantId)
     .maybeSingle<RestaurantSettings>();
 
-  const { data: restaurantPrep } = await supabase
-    .from("restaurants")
-    .select("avg_prep_minutes")
-    .eq("id", data.restaurantId)
-    .maybeSingle<{ avg_prep_minutes: number }>();
-
   // Tempo de preparo: o item mais demorado do pedido (cozinha trabalha em
-  // paralelo), com fallback pra média do restaurante quando o produto não
-  // tem tempo próprio cadastrado.
+  // paralelo), com fallback pra média do restaurante (restaurant_settings,
+  // configurável em Dashboard → Configurações) quando o produto não tem
+  // tempo próprio cadastrado.
   const maxItemPrepMinutes = Math.max(
     0,
     ...products.map((p) => (p as Product).prep_time_minutes ?? 0)
   );
-  const prepMinutes = maxItemPrepMinutes > 0 ? maxItemPrepMinutes : restaurantPrep?.avg_prep_minutes ?? 40;
+  const prepMinutes = maxItemPrepMinutes > 0 ? maxItemPrepMinutes : settings?.avg_prep_minutes ?? 40;
 
   if (settings && subtotal < settings.min_order_cents) {
     return { ok: false, error: "Pedido abaixo do valor mínimo." };

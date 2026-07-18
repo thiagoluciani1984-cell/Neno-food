@@ -18,6 +18,10 @@ import {
   DEFAULT_HOURS,
 } from "@/features/settings/schemas";
 import type { RestaurantSettings, PaymentMethod } from "@/types/database.types";
+import {
+  ESTABLISHMENT_TYPE_OPTIONS,
+  type EstablishmentType,
+} from "@/core/domain/value-objects/establishment-type";
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: string }[] = [
   { value: "pix", label: "PIX", icon: "💠" },
@@ -36,10 +40,12 @@ function realToCents(value: string): number {
 
 export function SettingsForm({
   initial,
+  restaurant,
   pagarmeConfigured = false,
   pagarmeDevMock = false,
 }: {
   initial: RestaurantSettings | null;
+  restaurant: { cuisine: string; establishment_type: EstablishmentType };
   pagarmeConfigured?: boolean;
   pagarmeDevMock?: boolean;
 }) {
@@ -47,6 +53,8 @@ export function SettingsForm({
     (initial?.opening_hours as SettingsInput["opening_hours"]) ?? DEFAULT_HOURS;
 
   const [form, setForm] = useState<SettingsInput>({
+    establishment_type: restaurant.establishment_type,
+    cuisine: restaurant.cuisine,
     is_open: initial?.is_open ?? false,
     accepts_delivery: initial?.accepts_delivery ?? true,
     accepts_pickup: initial?.accepts_pickup ?? false,
@@ -156,6 +164,49 @@ export function SettingsForm({
           </Button>
         </div>
       </div>
+
+      {/* Categoria do restaurante */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Categoria do restaurante</CardTitle>
+          <CardDescription>
+            Usada nos filtros de busca do marketplace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tipo de estabelecimento</Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ESTABLISHMENT_TYPE_OPTIONS.map((t) => (
+                <label
+                  key={t.value}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:font-semibold"
+                >
+                  <input
+                    type="radio"
+                    name="establishment_type"
+                    value={t.value}
+                    checked={form.establishment_type === t.value}
+                    onChange={() => set("establishment_type", t.value)}
+                    className="accent-primary"
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2 sm:max-w-xs">
+            <Label htmlFor="cuisine">Tipo de culinária</Label>
+            <Input
+              id="cuisine"
+              value={form.cuisine}
+              onChange={(e) => set("cuisine", e.target.value)}
+              placeholder="Ex: Italiana, Brasileira, Árabe..."
+              maxLength={80}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tipos de atendimento */}
       <Card>

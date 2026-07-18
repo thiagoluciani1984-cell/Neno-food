@@ -55,6 +55,18 @@ export async function saveSettingsAction(
     return { ok: false, error: "Falha ao salvar configurações. Tente novamente." };
   }
 
+  const { error: restaurantError } = await supabase
+    .from("restaurants")
+    .update({
+      establishment_type: data.establishment_type,
+      cuisine: data.cuisine,
+    })
+    .eq("id", restaurantId);
+
+  if (restaurantError) {
+    return { ok: false, error: "Falha ao salvar categoria. Tente novamente." };
+  }
+
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");
   return { ok: true };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ESTABLISHMENT_TYPES } from "@/core/domain/value-objects/establishment-type";
 
 const daySchema = z.object({
   enabled: z.boolean(),
@@ -7,6 +8,10 @@ const daySchema = z.object({
 });
 
 export const settingsSchema = z.object({
+  // Categoria
+  establishment_type: z.enum(ESTABLISHMENT_TYPES),
+  cuisine: z.string().min(2, "Informe o tipo de culinária").max(80),
+
   // Operação
   is_open: z.boolean(),
   accepts_delivery: z.boolean(),

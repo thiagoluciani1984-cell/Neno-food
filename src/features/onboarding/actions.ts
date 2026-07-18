@@ -112,6 +112,7 @@ export async function saveStep2Action(
     address_city: formData.get("address_city"),
     address_state: formData.get("address_state"),
     address_zip: formData.get("address_zip"),
+    avg_prep_minutes: formData.get("avg_prep_minutes"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
@@ -150,6 +151,7 @@ export async function saveStep2Action(
         address_city: parsed.data.address_city,
         address_state: parsed.data.address_state.toUpperCase(),
         address_zip: parsed.data.address_zip,
+        avg_prep_minutes: parsed.data.avg_prep_minutes,
       },
       { onConflict: "restaurant_id" }
     );

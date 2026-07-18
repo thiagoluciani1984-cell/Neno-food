@@ -21,6 +21,7 @@ type Defaults = {
   address_city?: string;
   address_state?: string;
   address_zip?: string;
+  avg_prep_minutes?: number;
 };
 
 function SubmitButton() {
@@ -106,6 +107,26 @@ export function Step2Form({ defaults = {} }: { defaults?: Defaults }) {
             <Label htmlFor="address_state">UF *</Label>
             <Input id="address_state" name="address_state" defaultValue={defaults.address_state} placeholder="SP" maxLength={2} required />
           </div>
+        </div>
+      </div>
+
+      {/* Operação */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Operação</h3>
+        <div className="space-y-1.5 sm:max-w-xs">
+          <Label htmlFor="avg_prep_minutes">Tempo médio de preparo (minutos) *</Label>
+          <Input
+            id="avg_prep_minutes"
+            name="avg_prep_minutes"
+            type="number"
+            min={1}
+            max={180}
+            defaultValue={defaults.avg_prep_minutes ?? 40}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Usado para calcular o prazo mostrado ao cliente. Dá pra ajustar depois em Configurações.
+          </p>
         </div>
       </div>
 

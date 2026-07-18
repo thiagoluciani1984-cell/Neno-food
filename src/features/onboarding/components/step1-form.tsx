@@ -7,19 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveStep1Action } from "../actions";
-
-const ESTABLISHMENT_TYPES = [
-  { value: "restaurant", label: "Restaurante" },
-  { value: "pizzeria",   label: "Pizzaria" },
-  { value: "hamburger",  label: "Hamburgueria" },
-  { value: "japanese",   label: "Japonês / Sushi" },
-  { value: "italian",    label: "Italiano" },
-  { value: "bakery",     label: "Padaria / Confeitaria" },
-  { value: "bar",        label: "Bar / Petiscaria" },
-  { value: "cafe",       label: "Café" },
-  { value: "fast_food",  label: "Fast Food" },
-  { value: "other",      label: "Outro" },
-];
+import { ESTABLISHMENT_TYPE_OPTIONS } from "@/core/domain/value-objects/establishment-type";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -97,7 +85,7 @@ export function Step1Form({ defaultName = "", defaultSlug = "" }: { defaultName?
       <div className="space-y-2">
         <Label>Tipo de estabelecimento *</Label>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {ESTABLISHMENT_TYPES.map((t) => (
+          {ESTABLISHMENT_TYPE_OPTIONS.map((t) => (
             <label
               key={t.value}
               className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:font-semibold"

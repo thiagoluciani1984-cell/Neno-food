@@ -95,6 +95,7 @@ export default async function OnboardingStepPage({
               address_city:       (settings?.address_city as string) ?? "",
               address_state:      (settings?.address_state as string) ?? "",
               address_zip:        (settings?.address_zip as string) ?? "",
+              avg_prep_minutes:   (settings?.avg_prep_minutes as number) ?? 40,
             }}
           />
         )}
