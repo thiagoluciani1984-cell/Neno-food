@@ -28,7 +28,9 @@ export async function loginAction(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { error: `[DEBUG ${error.status} ${error.code ?? ""}] ${error.message}` };
+    return {
+      error: `[DEBUG url=${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_URL)} keyLen=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length}] ${error.status} ${error.message}`,
+    };
   }
 
   // Direciona conforme o papel do usuário
