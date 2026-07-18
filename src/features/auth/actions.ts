@@ -27,11 +27,7 @@ export async function loginAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) {
-    return {
-      error: `[DEBUG url=${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_URL)} keyLen=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length}] ${error.status} ${error.message}`,
-    };
-  }
+  if (error) return { error: "E-mail ou senha incorretos." };
 
   // Direciona conforme o papel do usuário
   const {
