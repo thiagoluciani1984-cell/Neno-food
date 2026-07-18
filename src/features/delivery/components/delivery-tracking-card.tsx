@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/infra/supabase/client";
+import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { cardItem, mascotFloat } from "@/lib/motion/nenos-motion";
 import { useNenosVariants } from "@/lib/motion/use-nenos-motion";
 import {
@@ -47,25 +47,32 @@ export function DeliveryTrackingCard({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`delivery-tracking-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "delivery_tracking",
-          filter: `order_id=eq.${orderId}`,
-        },
-        (payload) => {
-          const row = payload.new as TrackingPoint;
-          setPoint(row);
-        }
-      )
-      .subscribe();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void getRealtimeAuthReady().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`delivery-tracking-${orderId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "delivery_tracking",
+            filter: `order_id=eq.${orderId}`,
+          },
+          (payload) => {
+            const row = payload.new as TrackingPoint;
+            setPoint(row);
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [orderId]);
 

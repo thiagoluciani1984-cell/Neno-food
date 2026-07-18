@@ -11,7 +11,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
-import { createClient } from "@/infra/supabase/client";
+import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
 import { timelineLineMotion, timelineStepMotion } from "@/lib/motion/nenos-motion";
 import type { OrderStatus, OrderType } from "@/types/database.types";
@@ -54,25 +54,33 @@ export function OrderTracker({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          const row = payload.new as { status: OrderStatus; confirmed_at: string | null };
-          setStatus(row.status);
-          setConfirmedAt(row.confirmed_at);
-        }
-      )
-      .subscribe();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void getRealtimeAuthReady().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`order-${orderId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "orders",
+            filter: `id=eq.${orderId}`,
+          },
+          (payload) => {
+            const row = payload.new as { status: OrderStatus; confirmed_at: string | null };
+            setStatus(row.status);
+            setConfirmedAt(row.confirmed_at);
+          }
+        )
+        .subscribe();
+    });
+
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [orderId]);
 

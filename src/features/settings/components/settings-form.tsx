@@ -49,8 +49,12 @@ export function SettingsForm({
   pagarmeConfigured?: boolean;
   pagarmeDevMock?: boolean;
 }) {
-  const hours =
-    (initial?.opening_hours as SettingsInput["opening_hours"]) ?? DEFAULT_HOURS;
+  // Mescla com o padrão pra tolerar dados legados/incompletos (ex.: chaves
+  // numéricas antigas ou dias faltando) sem quebrar a tela.
+  const hours = {
+    ...DEFAULT_HOURS,
+    ...(initial?.opening_hours as Partial<SettingsInput["opening_hours"]> | undefined),
+  };
 
   const [form, setForm] = useState<SettingsInput>({
     establishment_type: restaurant.establishment_type,

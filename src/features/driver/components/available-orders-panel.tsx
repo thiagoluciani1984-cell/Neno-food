@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Bike } from "lucide-react";
-import { createClient } from "@/infra/supabase/client";
+import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { SoundToggle } from "@/components/shared/sound-toggle";
 import { playDeliveryAlert } from "@/lib/sound";
 import { getAvailableOrdersAction } from "../actions";
@@ -41,21 +41,26 @@ export function AvailableOrdersPanel({ initialOrders }: { initialOrders: Availab
     const interval = window.setInterval(refresh, POLL_INTERVAL_MS);
 
     const supabase = createClient();
-    const channel = supabase
-      .channel("driver-available-orders")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: "status=eq.ready" },
-        () => {
-          void refresh();
-        }
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void getRealtimeAuthReady().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel("driver-available-orders")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "orders", filter: "status=eq.ready" },
+          () => {
+            void refresh();
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

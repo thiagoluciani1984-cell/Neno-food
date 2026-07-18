@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Clock, Bike, ShoppingBag } from "lucide-react";
-import { createClient } from "@/infra/supabase/client";
+import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,41 +48,48 @@ export function OrdersBoard({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`orders-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        async (payload) => {
-          const row = payload.new as OrderWithItems;
-          if (payload.eventType === "INSERT") {
-            const full = await fetchOrder(row.id);
-            if (full) {
-              setOrders((prev) => [...prev, full]);
-              playNewOrderChime();
-              toast.success(`Novo pedido #${full.order_number}!`, {
-                description: full.customer_name ?? undefined,
-              });
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void getRealtimeAuthReady().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`orders-${restaurantId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "orders",
+            filter: `restaurant_id=eq.${restaurantId}`,
+          },
+          async (payload) => {
+            const row = payload.new as OrderWithItems;
+            if (payload.eventType === "INSERT") {
+              const full = await fetchOrder(row.id);
+              if (full) {
+                setOrders((prev) => [...prev, full]);
+                playNewOrderChime();
+                toast.success(`Novo pedido #${full.order_number}!`, {
+                  description: full.customer_name ?? undefined,
+                });
+              }
+            } else if (payload.eventType === "UPDATE") {
+              const terminal = row.status === "delivered" || row.status === "cancelled";
+              setOrders((prev) =>
+                terminal
+                  ? prev.filter((o) => o.id !== row.id)
+                  : prev.map((o) => (o.id === row.id ? { ...o, ...row } : o))
+              );
             }
-          } else if (payload.eventType === "UPDATE") {
-            const terminal = row.status === "delivered" || row.status === "cancelled";
-            setOrders((prev) =>
-              terminal
-                ? prev.filter((o) => o.id !== row.id)
-                : prev.map((o) => (o.id === row.id ? { ...o, ...row } : o))
-            );
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [restaurantId, fetchOrder]);
 
