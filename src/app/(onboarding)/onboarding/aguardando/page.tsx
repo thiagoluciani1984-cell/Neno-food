@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { Clock, CheckCircle2, Mail } from "lucide-react";
+import { CheckCircle2, Mail } from "lucide-react";
 import { getSession } from "@/features/auth/get-session";
 import { createClient } from "@/infra/supabase/server";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import Link from "next/link";
 
 export default async function AguardandoPage() {
@@ -26,9 +27,14 @@ export default async function AguardandoPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-6 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-        <Clock className="h-10 w-10 text-primary" />
-      </div>
+      <Image
+        src="/brand/mascot/chef.webp"
+        alt=""
+        width={900}
+        height={491}
+        className="h-32 w-auto"
+        priority
+      />
 
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Cadastro em análise!</h1>

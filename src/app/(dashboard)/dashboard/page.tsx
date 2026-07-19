@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { getActiveRestaurantId } from "@/features/auth/get-session";
 import { getDashboardMetrics } from "@/features/dashboard/queries";
 import { getReportSummary } from "@/features/reports/queries";
@@ -63,13 +64,23 @@ export default async function DashboardHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold">
-          Bem-vindo de volta! <span className="inline-block animate-nenos-soft-float">👋</span>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Acompanhe a operação do seu restaurante em tempo real.
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold">
+            Bem-vindo de volta! <span className="inline-block animate-nenos-soft-float">👋</span>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Acompanhe a operação do seu restaurante em tempo real.
+          </p>
+        </div>
+        <Image
+          src="/brand/mascot/chef.webp"
+          alt=""
+          width={900}
+          height={491}
+          className="hidden h-20 w-auto shrink-0 sm:block"
+          priority
+        />
       </div>
 
       <DashboardKpiGrid kpis={kpis} />

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
-import { Bike } from "lucide-react";
 import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { SoundToggle } from "@/components/shared/sound-toggle";
 import { playDeliveryAlert } from "@/lib/sound";
@@ -79,8 +79,14 @@ export function AvailableOrdersPanel({ initialOrders }: { initialOrders: Availab
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-xl border bg-white py-10 text-center">
-          <Bike className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+        <div className="rounded-xl border bg-white py-8 text-center">
+          <Image
+            src="/brand/mascot/motoboy.webp"
+            alt=""
+            width={700}
+            height={420}
+            className="mx-auto mb-2 h-28 w-auto"
+          />
           <p className="text-sm text-muted-foreground">Nenhum pedido disponível no momento.</p>
           <p className="text-xs text-muted-foreground">Fique online e aguarde!</p>
         </div>
