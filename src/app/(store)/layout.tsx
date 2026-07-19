@@ -19,30 +19,30 @@ export default function StoreLayout({
         <StorePageMotion>{children}</StorePageMotion>
       </main>
 
-      <footer className="hidden border-t border-orange-100 bg-white py-10 md:block">
+      <footer className="hidden bg-[#171717] py-12 md:block">
         <div className="container flex flex-col items-center gap-4 text-center">
           <Logo size="lg" />
-          <p className="max-w-md text-sm text-muted-foreground">
+          <p className="max-w-md text-sm text-white/70">
             {siteConfig.description}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {["Entrega rápida", "Restaurantes locais", "PIX e cartão"].map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-xs font-semibold text-primary"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/80"
               >
                 {tag}
               </span>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground/70">
+          <p className="text-xs text-white/40">
             {siteConfig.tagline} · © {new Date().getFullYear()} Nenos Food
           </p>
-          <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-            <Link href="/privacy" className="hover:text-primary hover:underline">
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-white/60">
+            <Link href="/privacy" className="transition-colors hover:text-primary hover:underline">
               Privacidade
             </Link>
-            <Link href="/terms" className="hover:text-primary hover:underline">
+            <Link href="/terms" className="transition-colors hover:text-primary hover:underline">
               Termos de Uso
             </Link>
           </div>

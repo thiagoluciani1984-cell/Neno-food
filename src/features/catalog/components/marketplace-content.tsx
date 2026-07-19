@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -131,15 +132,28 @@ export function MarketplaceContent({
   const orchestratorVariants = useNenosVariants(homepageOrchestrator);
 
   return (
-    <div className="min-h-screen bg-[#FFF9F2] pb-4">
+    <div className="min-h-screen bg-[#FFFAF4] pb-4">
       <motion.div
         variants={orchestratorVariants}
         initial="initial"
         animate="animate"
-        className="container space-y-6 py-4 sm:py-6"
+        className="container space-y-7 py-4 sm:py-8 lg:space-y-10 lg:py-12"
       >
-        <motion.div variants={searchVariants}>
-          <MarketplaceSearchBar value={query} onChange={setQuery} />
+        <motion.div
+          variants={searchVariants}
+          className="lg:grid lg:grid-cols-2 lg:items-end lg:gap-12"
+        >
+          <div className="hidden lg:block">
+            <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-primary">
+              Sabores escolhidos para você
+            </span>
+            <h1 className="mt-4 text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground xl:text-[2.75rem]">
+              Sua próxima experiência gastronômica começa aqui.
+            </h1>
+          </div>
+          <div className="lg:pb-0.5">
+            <MarketplaceSearchBar value={query} onChange={setQuery} />
+          </div>
         </motion.div>
 
         {/* Banner promo */}
@@ -151,7 +165,7 @@ export function MarketplaceContent({
               initial="initial"
               animate="animate"
               exit="exit"
-              className="rounded-3xl shadow-orange overflow-hidden"
+              className="overflow-hidden rounded-[28px] shadow-nenos-elevated sm:rounded-[32px]"
             >
               <PromoBanner promo={marketplacePromos[activeSlide]} />
             </motion.div>
@@ -172,10 +186,10 @@ export function MarketplaceContent({
                 key={item}
                 type="button"
                 onClick={() => setActiveQuickFilter(active ? null : item)}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 ${
                   active
                     ? "bg-primary text-white shadow-md shadow-primary/25"
-                    : "border border-orange-100 bg-white text-muted-foreground"
+                    : "border border-orange-100 bg-white text-muted-foreground shadow-sm hover:border-primary/30 hover:text-primary"
                 }`}
               >
                 {item}
@@ -186,7 +200,7 @@ export function MarketplaceContent({
 
         {/* Categorias */}
         <motion.section variants={sectionVariants}>
-          <h2 className="mb-3 text-base font-extrabold text-foreground">Categorias</h2>
+          <SectionHeading eyebrow="EXPLORE" title="O que combina com você?" />
           <motion.div
             variants={staggerContainer}
             initial="initial"
@@ -202,13 +216,13 @@ export function MarketplaceContent({
                   type="button"
                   variants={mobileCardItem}
                   onClick={() => setActiveCategory(isActive ? null : cat.filter)}
-                  className="flex w-[72px] shrink-0 flex-col items-center gap-2"
+                  className="flex w-[76px] shrink-0 flex-col items-center gap-2 rounded-2xl p-0.5 outline-none transition-transform focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 active:scale-95"
                 >
                   <span
-                    className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 transition-all ${
+                    className={`flex h-16 w-16 items-center justify-center rounded-2xl border transition-all ${
                       isActive
                         ? "border-primary bg-primary text-white shadow-md shadow-primary/25"
-                        : "border-orange-100 bg-white text-primary"
+                        : "border-orange-100/80 bg-white text-primary shadow-sm hover:border-primary/30 hover:shadow-md"
                     }`}
                   >
                     <Icon className="h-6 w-6" />
@@ -236,12 +250,15 @@ export function MarketplaceContent({
         {/* Restaurantes populares — scroll horizontal */}
         {!initialQuery && filtered.length > 0 && (
           <motion.section variants={sectionVariants}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-extrabold">Restaurantes populares</h2>
-              <Link href="/?busca=1" className="text-xs font-bold text-primary">
-                Ver todos
-              </Link>
-            </div>
+            <SectionHeading
+              eyebrow="MAIS QUERIDOS"
+              title="Restaurantes populares"
+              action={
+                <Link href="/?busca=1" className="text-xs font-bold text-primary hover:underline">
+                  Ver todos
+                </Link>
+              }
+            />
             <motion.div
               variants={staggerContainer}
               initial="initial"
@@ -260,12 +277,12 @@ export function MarketplaceContent({
         {/* Destaques para você */}
         {!initialQuery && featuredProducts.length > 0 && (
           <motion.section variants={sectionVariants}>
-            <h2 className="mb-3 text-base font-extrabold">Destaques para você</h2>
+            <SectionHeading eyebrow="SELEÇÃO NENOS" title="Destaques para você" />
             <motion.div
               variants={staggerContainer}
               initial="initial"
               animate="animate"
-              className="space-y-4"
+              className="grid gap-4 sm:grid-cols-2"
             >
               {featuredProducts.map((hit) => (
                 <motion.div key={hit.product.id} variants={mobileCardItem}>
@@ -278,7 +295,7 @@ export function MarketplaceContent({
 
         {/* Grid completo */}
         <motion.section variants={sectionVariants}>
-          <h2 className="mb-3 text-base font-extrabold">
+          <h2 className="mb-3 text-base font-extrabold sm:text-lg">
             {activeCategory || query ? `Resultados (${filtered.length})` : "Todos os restaurantes"}
           </h2>
           {filtered.length === 0 ? (
@@ -286,7 +303,7 @@ export function MarketplaceContent({
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: nenosEase }}
-              className="rounded-3xl border border-orange-100 bg-white py-10 text-center"
+              className="rounded-[28px] border border-orange-100 bg-white py-10 text-center"
             >
               <Image
                 src="/brand/mascot/empty-state.webp"
@@ -303,7 +320,7 @@ export function MarketplaceContent({
               variants={staggerContainer}
               initial="initial"
               animate="animate"
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {filtered.map((card) => (
                 <motion.div key={card.restaurant.id} variants={cardItem}>
@@ -318,22 +335,59 @@ export function MarketplaceContent({
   );
 }
 
+function SectionHeading({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow?: string;
+  title: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-end justify-between gap-3">
+      <div>
+        {eyebrow && (
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary/70">
+            {eyebrow}
+          </p>
+        )}
+        <h2 className="mt-0.5 text-base font-extrabold text-foreground sm:text-lg">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
   const isOpen = settings?.is_open ?? false;
   return (
     <Link
       href={`/${restaurant.slug}`}
-      className="group w-[260px] shrink-0 overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm hover-nenos-lift"
+      className="group w-[270px] shrink-0 overflow-hidden rounded-[28px] border border-orange-100/70 bg-white shadow-nenos-elevated transition-transform hover-nenos-lift"
     >
-      <div className="relative h-36 bg-muted">
+      <div className="relative h-40 bg-muted">
         {restaurant.cover_url ? (
-          <Image src={restaurant.cover_url} alt={restaurant.name} fill className="object-cover" sizes="260px" />
+          <Image
+            src={restaurant.cover_url}
+            alt={restaurant.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="270px"
+          />
         ) : (
           <div className="flex h-full items-center justify-center nenos-gradient-diagonal opacity-80" />
         )}
+        <span
+          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm ${
+            isOpen ? "bg-green-500 text-white" : "bg-black/60 text-white"
+          }`}
+        >
+          {isOpen ? "Aberto" : "Fechado"}
+        </span>
         <button
           type="button"
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-muted-foreground shadow-sm"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-muted-foreground shadow-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           onClick={(e) => e.preventDefault()}
           aria-label="Favoritar"
         >
@@ -346,25 +400,22 @@ function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
         )}
       </div>
       <div className="space-y-2 p-4 pt-7">
-        <h3 className="truncate font-extrabold group-hover:text-primary">{restaurant.name}</h3>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Star className="h-3.5 w-3.5 fill-secondary text-secondary" />
-          <span className="font-bold text-foreground">
+        <h3 className="truncate font-extrabold leading-tight text-foreground group-hover:text-primary">
+          {restaurant.name}
+        </h3>
+        <p className="truncate text-xs text-muted-foreground">{restaurant.cuisine}</p>
+        <div className="flex items-center gap-3 border-t border-orange-50 pt-2.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 font-bold text-foreground">
+            <Star className="h-3.5 w-3.5 fill-secondary text-secondary" />
             {restaurant.avg_rating > 0 ? restaurant.avg_rating.toFixed(1) : "4.8"}
           </span>
           {settings?.avg_prep_minutes && (
-            <>
-              <span>·</span>
-              <Clock className="h-3 w-3" />
-              <span>{settings.avg_prep_minutes} min</span>
-            </>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {settings.avg_prep_minutes} min
+            </span>
           )}
-          <span>·</span>
-          <span className={isOpen ? "font-semibold text-green-600" : "text-red-500"}>
-            {isOpen ? "Aberto" : "Fechado"}
-          </span>
         </div>
-        <p className="truncate text-xs text-muted-foreground">{restaurant.cuisine}</p>
       </div>
     </Link>
   );
@@ -375,11 +426,17 @@ function FeaturedProductCard({ product, restaurant }: MarketplaceProductHit) {
   return (
     <Link
       href={`/${restaurant.slug}?produto=${product.slug}`}
-      className="group flex gap-4 overflow-hidden rounded-3xl border border-orange-100 bg-white p-3 shadow-sm hover-nenos-lift"
+      className="group flex gap-4 overflow-hidden rounded-[28px] border border-orange-100/70 bg-white p-3 shadow-nenos-elevated transition-transform hover-nenos-lift"
     >
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-muted">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-muted sm:h-28 sm:w-28">
         {product.image_url ? (
-          <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="96px" />
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 96px, 112px"
+          />
         ) : (
           <div className="flex h-full items-center justify-center bg-orange-50">
             <UtensilsCrossed className="h-8 w-8 text-primary/30" />
@@ -391,7 +448,9 @@ function FeaturedProductCard({ product, restaurant }: MarketplaceProductHit) {
       </div>
       <div className="min-w-0 flex-1 py-0.5">
         <p className="text-xs font-bold text-primary">{restaurant.name}</p>
-        <h3 className="truncate font-extrabold group-hover:text-primary">{product.name}</h3>
+        <h3 className="truncate font-extrabold leading-tight text-foreground group-hover:text-primary">
+          {product.name}
+        </h3>
         {product.description && (
           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{product.description}</p>
         )}
@@ -409,26 +468,39 @@ function RestaurantGridCard({ restaurant, settings }: RestaurantCard) {
   return (
     <Link
       href={`/${restaurant.slug}`}
-      className="group overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm hover-nenos-lift"
+      className="group overflow-hidden rounded-[28px] border border-orange-100/70 bg-white shadow-nenos-elevated transition-transform hover-nenos-lift"
     >
-      <div className="relative h-40 bg-muted">
+      <div className="relative h-44 bg-muted">
         {restaurant.cover_url ? (
-          <Image src={restaurant.cover_url} alt={restaurant.name} fill className="object-cover transition-transform group-hover:scale-105" sizes="33vw" />
+          <Image
+            src={restaurant.cover_url}
+            alt={restaurant.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+          />
         ) : (
           <div className="flex h-full items-center justify-center bg-orange-50">
             <UtensilsCrossed className="h-12 w-12 text-primary/25" />
           </div>
         )}
         <span
-          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm ${
             isOpen ? "bg-green-500 text-white" : "bg-black/60 text-white"
           }`}
         >
           {isOpen ? "Aberto" : "Fechado"}
         </span>
+        {restaurant.logo_url && (
+          <div className="absolute -bottom-5 left-4 h-12 w-12 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-md">
+            <Image src={restaurant.logo_url} alt="" fill className="object-cover" sizes="48px" />
+          </div>
+        )}
       </div>
-      <div className="space-y-2 p-4">
-        <h3 className="truncate font-extrabold group-hover:text-primary">{restaurant.name}</h3>
+      <div className="space-y-2 p-4 pt-7">
+        <h3 className="truncate font-extrabold leading-tight text-foreground group-hover:text-primary">
+          {restaurant.name}
+        </h3>
         <p className="text-xs text-muted-foreground">{restaurant.cuisine}</p>
         <div className="flex items-center gap-3 border-t border-orange-50 pt-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1 font-bold text-foreground">
