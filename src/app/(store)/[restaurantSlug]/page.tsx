@@ -19,6 +19,7 @@ import { createClient } from "@/infra/supabase/server";
 import { RestaurantCartBar } from "@/features/cart/components/restaurant-cart-bar";
 import { RestaurantHeroCard } from "@/features/catalog/components/restaurant-hero-card";
 import { RestaurantTabs } from "@/features/catalog/components/restaurant-tabs";
+import { restaurantThemeStyle } from "@/lib/color";
 
 interface Props {
   params: Promise<{ restaurantSlug: string }>;
@@ -81,7 +82,7 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
 
 
   return (
-    <div className="bg-[#FFF9F2] pb-28">
+    <div className="bg-[#FFF9F2] pb-28" style={restaurantThemeStyle(restaurant)}>
       {/* Hero */}
       <section className="relative h-52 sm:h-64">
         {restaurant.cover_url ? (
@@ -209,7 +210,9 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                 id={`cat-${cat.slug}`}
                 className="scroll-mt-36"
               >
-                <h2 className="mb-4 text-2xl font-bold">{cat.name}</h2>
+                <h2 className="mb-4 inline-block rounded-full bg-primary px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-primary-foreground sm:text-base">
+                  {cat.name}
+                </h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   {cat.products.map((product) => (
                     <ProductCard

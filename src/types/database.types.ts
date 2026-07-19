@@ -107,6 +107,8 @@ export interface Restaurant {
   is_verified: boolean;
   approved_at: string | null;
   approved_by: string | null;
+  theme_primary: string | null;
+  theme_secondary: string | null;
   created_at: string;
   updated_at: string;
 }
