@@ -18,6 +18,7 @@ import { getSession } from "@/features/auth/get-session";
 import { createClient } from "@/infra/supabase/server";
 import { RestaurantCartBar } from "@/features/cart/components/restaurant-cart-bar";
 import { RestaurantHeroCard } from "@/features/catalog/components/restaurant-hero-card";
+import { PointRestaurantHero } from "@/features/catalog/components/point-restaurant-hero";
 import { RestaurantTabs } from "@/features/catalog/components/restaurant-tabs";
 import { restaurantThemeStyle } from "@/lib/color";
 
@@ -88,36 +89,28 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
       style={restaurantThemeStyle(restaurant)}
     >
       {/* Hero */}
-      <section className={cn("relative overflow-hidden", isPoint ? "h-72 sm:h-[23rem]" : "h-52 sm:h-64")}>
-        {restaurant.cover_url ? (
-          <Image
-            src={restaurant.cover_url}
-            alt={restaurant.name}
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 nenos-gradient-diagonal" />
-        )}
-        <div
-          className={cn(
-            "absolute inset-0",
-            isPoint
-              ? "bg-gradient-to-r from-black/80 via-black/30 to-black/15"
-              : "bg-gradient-to-b from-black/20 to-black/50"
-          )}
+      {isPoint ? (
+        <PointRestaurantHero
+          restaurantName={restaurant.name}
+          logoUrl={restaurant.logo_url}
         />
-        {isPoint && (
-          <div className="container relative flex h-full items-start pt-10 sm:pt-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-white backdrop-blur-md">
-              <Flame className="h-4 w-4 text-primary" />
-              Sabor que chega quente
-            </div>
-          </div>
-        )}
-      </section>
+      ) : (
+        <section className="relative h-52 overflow-hidden sm:h-64">
+          {restaurant.cover_url ? (
+            <Image
+              src={restaurant.cover_url}
+              alt={restaurant.name}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 nenos-gradient-diagonal" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/50" />
+        </section>
+      )}
 
       {/* Card sobreposto */}
       <div className="container relative z-10 -mt-16">
@@ -135,7 +128,13 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
               )}
             >
               {restaurant.logo_url ? (
-                <Image src={restaurant.logo_url} alt="" fill className="object-cover" sizes="64px" />
+                <Image
+                  src={restaurant.logo_url}
+                  alt=""
+                  fill
+                  className={isPoint ? "object-contain p-1" : "object-cover"}
+                  sizes="64px"
+                />
               ) : (
                 <Image src="/brand/logo.png" alt="" fill className="object-contain p-1" sizes="64px" />
               )}
