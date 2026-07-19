@@ -17,6 +17,7 @@ import {
 import { fetchProductOptionsAction } from "@/features/catalog/actions-options-fetch";
 import { ProductAddDialog } from "./product-add-dialog";
 import { productHighlightMotion } from "@/lib/motion/nenos-motion";
+import { resolveMenuImage } from "@/lib/menu-image-overrides";
 import type { Product } from "@/types/database.types";
 
 export function ProductCard({
@@ -25,12 +26,14 @@ export function ProductCard({
   restaurantSlug,
   deepLinkSlug,
   isOpen = true,
+  premium = false,
 }: {
   product: Product;
   restaurantId: string;
   restaurantSlug: string;
   deepLinkSlug?: string;
   isOpen?: boolean;
+  premium?: boolean;
 }) {
   const addItem = useCart((s) => s.addItem);
   const setQuantity = useCart((s) => s.setQuantity);
@@ -40,6 +43,7 @@ export function ProductCard({
   const [wasAdded, setWasAdded] = useState(false);
   const deepLinkHandled = useRef(false);
   const price = effectivePriceCents(product);
+  const imageUrl = resolveMenuImage(product.slug, product.image_url);
   const hasPromo = product.promo_price_cents != null;
   const isHighlighted = deepLinkSlug === product.slug;
   const lineId = buildCartLineId(product.id);
@@ -66,7 +70,7 @@ export function ProductCard({
           basePriceCents: price,
           unitPriceCents: price,
           quantity: 1,
-          imageUrl: product.image_url,
+          imageUrl,
           options: [],
         },
         restaurantId,
@@ -104,17 +108,26 @@ export function ProductCard({
         animate={wasAdded ? "added" : "idle"}
         variants={productHighlightMotion}
         className={cn(
-          "group flex gap-4 rounded-3xl border border-orange-100 bg-white p-3 shadow-sm transition-all hover:shadow-md hover-nenos-lift",
+          "group flex gap-4 rounded-3xl border bg-white p-3 transition-all hover-nenos-lift",
+          premium
+            ? "border-black/[0.06] shadow-[0_12px_34px_rgba(24,20,16,0.07)] hover:border-orange-300 hover:shadow-[0_18px_45px_rgba(24,20,16,0.12)]"
+            : "border-orange-100 shadow-sm hover:shadow-md",
           isHighlighted && "ring-2 ring-primary ring-offset-2"
         )}
-      >        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-muted">
-          {product.image_url ? (
+      >
+        <div
+          className={cn(
+            "relative shrink-0 overflow-hidden rounded-2xl bg-muted",
+            premium ? "h-28 w-28 sm:h-32 sm:w-32" : "h-24 w-24"
+          )}
+        >
+          {imageUrl ? (
             <Image
-              src={product.image_url}
+              src={imageUrl}
               alt={product.name}
               fill
-              sizes="96px"
-              className="object-cover"
+              sizes={premium ? "(max-width: 640px) 112px, 128px" : "96px"}
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             />
           ) : (
             <div className="flex h-full items-center justify-center bg-orange-50">
@@ -122,7 +135,7 @@ export function ProductCard({
             </div>
           )}
           {product.is_featured && (
-            <span className="absolute left-1 top-1 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold text-white">
+            <span className="absolute left-1.5 top-1.5 rounded-full bg-primary px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white shadow-sm">
               Top
             </span>
           )}
@@ -130,7 +143,9 @@ export function ProductCard({
 
         <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
           <div>
-            <h3 className="font-extrabold leading-tight text-foreground">{product.name}</h3>
+            <h3 className={cn("font-extrabold leading-tight text-foreground", premium && "text-[15px] sm:text-base")}>
+              {product.name}
+            </h3>
             {product.description && (
               <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                 {product.description}
@@ -139,7 +154,9 @@ export function ProductCard({
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <div>
-              <span className="text-base font-extrabold text-primary">{formatBRL(price)}</span>
+              <span className={cn("text-base font-extrabold text-primary", premium && "text-lg")}>
+                {formatBRL(price)}
+              </span>
               {hasPromo && (
                 <span className="ml-2 text-xs text-muted-foreground line-through">
                   {formatBRL(product.price_cents)}

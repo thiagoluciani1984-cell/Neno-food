@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock, Images, Star } from "lucide-react";
+import { Clock, Flame, Images, ShieldCheck, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/money";
@@ -10,7 +10,7 @@ import { ProductCard } from "@/features/catalog/components/product-card";
 import { getMenuBySlug } from "@/features/catalog/queries";
 import { getRestaurantFeedPosts } from "@/features/feed/queries";
 import { PostCard } from "@/features/feed/components/post-card";
-import { getRestaurantReviews, getReviewsSummary, getCustomerReview } from "@/features/reviews/queries";
+import { getCustomerReview } from "@/features/reviews/queries";
 import { isRestaurantFavorited } from "@/features/favorites/queries";
 import { ReviewsList } from "@/features/reviews/components/reviews-list";
 import { RestaurantFavoriteButton } from "@/features/favorites/components/restaurant-favorite-button";
@@ -52,6 +52,7 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
   const { restaurant, settings, categories } = menu;
   const isRestaurantOpen = settings?.is_open ?? false;
   const deepLinkSlug = produto?.trim() || undefined;
+  const isPoint = restaurant.slug === "poit-da-pizza";
 
   const { profile } = await getSession();
   const supabase = await createClient();
@@ -82,9 +83,12 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
 
 
   return (
-    <div className="bg-[#FFF9F2] pb-28" style={restaurantThemeStyle(restaurant)}>
+    <div
+      className={cn("pb-28", isPoint ? "bg-[#f4f1ec]" : "bg-[#FFF9F2]")}
+      style={restaurantThemeStyle(restaurant)}
+    >
       {/* Hero */}
-      <section className="relative h-52 sm:h-64">
+      <section className={cn("relative overflow-hidden", isPoint ? "h-72 sm:h-[23rem]" : "h-52 sm:h-64")}>
         {restaurant.cover_url ? (
           <Image
             src={restaurant.cover_url}
@@ -97,14 +101,39 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
         ) : (
           <div className="absolute inset-0 nenos-gradient-diagonal" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/50" />
+        <div
+          className={cn(
+            "absolute inset-0",
+            isPoint
+              ? "bg-gradient-to-r from-black/80 via-black/30 to-black/15"
+              : "bg-gradient-to-b from-black/20 to-black/50"
+          )}
+        />
+        {isPoint && (
+          <div className="container relative flex h-full items-start pt-10 sm:pt-14">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-white backdrop-blur-md">
+              <Flame className="h-4 w-4 text-primary" />
+              Sabor que chega quente
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Card sobreposto */}
       <div className="container relative z-10 -mt-16">
-        <RestaurantHeroCard>
+        <RestaurantHeroCard
+          className={cn(
+            isPoint &&
+              "border border-white/10 bg-[#171512] text-white shadow-[0_28px_80px_rgba(16,12,8,0.28)]"
+          )}
+        >
           <div className="flex items-start gap-4">
-            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-orange-100 bg-orange-50 shadow-sm">
+            <div
+              className={cn(
+                "relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 shadow-sm",
+                isPoint ? "border-primary/70 bg-black" : "border-orange-100 bg-orange-50"
+              )}
+            >
               {restaurant.logo_url ? (
                 <Image src={restaurant.logo_url} alt="" fill className="object-cover" sizes="64px" />
               ) : (
@@ -115,7 +144,9 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-extrabold sm:text-2xl">{restaurant.name}</h1>
+                    <h1 className={cn("text-xl font-extrabold sm:text-2xl", isPoint && "text-white")}>
+                      {restaurant.name}
+                    </h1>
                     <Badge
                       className={cn(
                         "rounded-full border-0 text-[10px] font-bold",
@@ -127,7 +158,7 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                       {isRestaurantOpen ? "Aberto" : "Fechado"}
                     </Badge>
                   </div>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
+                  <p className={cn("mt-0.5 text-sm", isPoint ? "text-white/55" : "text-muted-foreground")}>
                     {restaurant.cuisine ?? "Restaurante"}
                     {restaurant.description && ` · ${restaurant.description.slice(0, 40)}…`}
                   </p>
@@ -141,19 +172,19 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                 )}
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-orange-50 pt-4">
+              <div className={cn("mt-4 grid grid-cols-3 gap-2 border-t pt-4", isPoint ? "border-white/10" : "border-orange-50")}>
                 <div className="text-center">
-                  <p className="flex items-center justify-center gap-1 text-sm font-extrabold text-foreground">
+                  <p className={cn("flex items-center justify-center gap-1 text-sm font-extrabold", isPoint ? "text-white" : "text-foreground")}>
                     <Star className="h-4 w-4 fill-secondary text-secondary" />
                     {restaurant.avg_rating > 0 ? restaurant.avg_rating.toFixed(1) : "—"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Avaliação</p>
+                  <p className={cn("text-[10px]", isPoint ? "text-white/45" : "text-muted-foreground")}>Avaliação</p>
                 </div>
-                <div className="text-center border-x border-orange-50">
-                  <p className="text-sm font-extrabold text-foreground">
+                <div className={cn("border-x text-center", isPoint ? "border-white/10" : "border-orange-50")}>
+                  <p className={cn("text-sm font-extrabold", isPoint ? "text-white" : "text-foreground")}>
                     {settings?.avg_prep_minutes ? `${settings.avg_prep_minutes} min` : "—"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Entrega</p>
+                  <p className={cn("text-[10px]", isPoint ? "text-white/45" : "text-muted-foreground")}>Entrega</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-extrabold text-primary">
@@ -163,33 +194,53 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                         ? formatBRL(settings.delivery_fee_cents)
                         : "—"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Frete</p>
+                  <p className={cn("text-[10px]", isPoint ? "text-white/45" : "text-muted-foreground")}>Frete</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between rounded-2xl bg-orange-50 px-4 py-2.5 text-sm">
-            <span className="font-semibold text-[#9A3412]">🎉 Promoções disponíveis</span>
-            <Link href={`/${restaurantSlug}/checkout`} className="font-bold text-primary">
+          <div
+            className={cn(
+              "mt-4 flex items-center justify-between rounded-2xl px-4 py-2.5 text-sm",
+              isPoint ? "bg-primary text-white" : "bg-orange-50"
+            )}
+          >
+            <span className={cn("font-semibold", isPoint ? "text-white" : "text-[#9A3412]")}>
+              {isPoint ? "Ofertas para compartilhar" : "🎉 Promoções disponíveis"}
+            </span>
+            <Link
+              href={`/${restaurantSlug}/checkout`}
+              className={cn("font-bold", isPoint ? "text-white" : "text-primary")}
+            >
               Ver ofertas →
             </Link>
           </div>
         </RestaurantHeroCard>
       </div>
 
-      <RestaurantTabs slug={restaurantSlug} active={tab} reviewsCount={restaurant.total_reviews} />
+      <RestaurantTabs
+        slug={restaurantSlug}
+        active={tab}
+        reviewsCount={restaurant.total_reviews}
+        premiumDark={isPoint}
+      />
 
       {tab === "cardapio" && (
         <>
           {categories.length > 0 && (
-            <nav className="border-b bg-white">
+            <nav className={cn("border-b", isPoint ? "border-black/10 bg-[#211e1a]" : "bg-white")}>
               <div className="container flex gap-2 overflow-x-auto py-3 scrollbar-hide">
                 {categories.map((cat) => (
                   <a
                     key={cat.id}
                     href={`#cat-${cat.slug}`}
-                    className="whitespace-nowrap rounded-full border border-orange-100 bg-[#FFF9F2] px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:bg-orange-50 hover:text-primary"
+                    className={cn(
+                      "whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                      isPoint
+                        ? "border-white/10 bg-white/[0.06] text-white/65 hover:border-primary hover:bg-primary hover:text-white"
+                        : "border-orange-100 bg-[#FFF9F2] text-muted-foreground hover:border-primary/40 hover:bg-orange-50 hover:text-primary"
+                    )}
                   >
                     {cat.name}
                   </a>
@@ -198,7 +249,26 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
             </nav>
           )}
 
-          <div className="container space-y-10 py-8">
+          <div className={cn("container space-y-10", isPoint ? "py-10 sm:py-14" : "py-8")}>
+            {isPoint && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { icon: Flame, title: "Forno no ponto", text: "Pizzas preparadas para chegar quentes" },
+                  { icon: ShieldCheck, title: "Ingredientes selecionados", text: "Sabor e qualidade em cada pedido" },
+                  { icon: Clock, title: "Pedido sem complicação", text: "Escolha, personalize e acompanhe" },
+                ].map(({ icon: Icon, title, text }) => (
+                  <div key={title} className="flex items-center gap-3 rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-extrabold text-[#211e1a]">{title}</p>
+                      <p className="text-xs text-muted-foreground">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {categories.length === 0 && (
               <p className="py-16 text-center text-muted-foreground">
                 Cardápio em breve.
@@ -210,9 +280,19 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                 id={`cat-${cat.slug}`}
                 className="scroll-mt-36"
               >
-                <h2 className="mb-4 inline-block rounded-full bg-primary px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-primary-foreground sm:text-base">
-                  {cat.name}
-                </h2>
+                {isPoint ? (
+                  <div className="mb-5 flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_0_6px_rgba(234,88,12,0.12)]" />
+                    <h2 className="text-lg font-black uppercase tracking-[0.08em] text-[#211e1a] sm:text-xl">
+                      {cat.name}
+                    </h2>
+                    <span className="h-px flex-1 bg-gradient-to-r from-black/15 to-transparent" />
+                  </div>
+                ) : (
+                  <h2 className="mb-4 inline-block rounded-full bg-primary px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-primary-foreground sm:text-base">
+                    {cat.name}
+                  </h2>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                   {cat.products.map((product) => (
                     <ProductCard
@@ -222,6 +302,7 @@ export default async function RestaurantPage({ params, searchParams }: Props) {
                       restaurantSlug={restaurantSlug}
                       deepLinkSlug={deepLinkSlug}
                       isOpen={isRestaurantOpen}
+                      premium={isPoint}
                     />
                   ))}
                 </div>
