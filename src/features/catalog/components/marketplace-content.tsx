@@ -10,6 +10,7 @@ import {
   homepageOrchestrator,
   homepageSection,
   mobileCardItem,
+  nenosEase,
   promoBannerMotion,
   slideUpMotion,
   staggerContainer,
@@ -150,7 +151,7 @@ export function MarketplaceContent({
               initial="initial"
               animate="animate"
               exit="exit"
-              className="rounded-3xl bg-nenos-gradient shadow-orange overflow-hidden"
+              className="rounded-3xl shadow-orange overflow-hidden"
             >
               <PromoBanner promo={marketplacePromos[activeSlide]} />
             </motion.div>
@@ -281,10 +282,22 @@ export function MarketplaceContent({
             {activeCategory || query ? `Resultados (${filtered.length})` : "Todos os restaurantes"}
           </h2>
           {filtered.length === 0 ? (
-            <div className="rounded-3xl border border-orange-100 bg-white py-16 text-center">
-              <UtensilsCrossed className="mx-auto mb-3 h-10 w-10 text-primary/30" />
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: nenosEase }}
+              className="rounded-3xl border border-orange-100 bg-white py-10 text-center"
+            >
+              <Image
+                src="/brand/mascot/empty-state.webp"
+                alt=""
+                width={480}
+                height={434}
+                className="mx-auto mb-2 h-36 w-auto"
+              />
               <p className="font-semibold text-muted-foreground">Nenhum restaurante encontrado</p>
-            </div>
+              <p className="mt-1 text-xs text-muted-foreground/70">Tenta outro termo ou categoria</p>
+            </motion.div>
           ) : (
             <motion.div
               variants={staggerContainer}

@@ -25,25 +25,32 @@ export const marketplacePromos: PromoSlide[] = [
 
 export function PromoBanner({ promo }: { promo: PromoSlide }) {
   return (
-    <div className="relative overflow-hidden p-5 text-white sm:p-6">
-      <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-      <div className="absolute bottom-0 right-4 hidden opacity-90 sm:block">
-        <Image src="/brand/logo.png" alt="" width={100} height={36} className="opacity-30" />
+    <div className="relative isolate min-h-[220px] overflow-hidden sm:min-h-[280px]">
+      <Image
+        src="/brand/mascot/hero-banner.webp"
+        alt=""
+        fill
+        priority
+        sizes="(max-width: 768px) 100vw, 900px"
+        className="object-cover object-[78%_center]"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/15 via-black/0 to-transparent" />
+      <div className="relative z-10 max-w-[62%] p-5 text-white sm:max-w-sm sm:p-8">
+        <span className="inline-flex rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-sm">
+          {promo.badge}
+        </span>
+        <h2 className="mt-3 text-xl font-extrabold leading-tight drop-shadow-sm sm:text-3xl">
+          {promo.title}
+        </h2>
+        <p className="mt-2 text-sm text-white/90 drop-shadow-sm sm:text-base">{promo.subtitle}</p>
+        <button
+          type="button"
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-md transition-transform hover:scale-105"
+        >
+          {promo.cta}
+          <ArrowRight className="h-4 w-4" />
+        </button>
       </div>
-      <span className="inline-flex rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-sm">
-        {promo.badge}
-      </span>
-      <h2 className="mt-3 max-w-xs text-xl font-extrabold leading-tight sm:text-2xl">
-        {promo.title}
-      </h2>
-      <p className="mt-1 max-w-sm text-sm text-white/85">{promo.subtitle}</p>
-      <button
-        type="button"
-        className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm"
-      >
-        {promo.cta}
-        <ArrowRight className="h-4 w-4" />
-      </button>
     </div>
   );
 }
