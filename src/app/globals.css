@@ -6,10 +6,11 @@
 
 @layer base {
   :root {
-    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-sans: "Inter", "Avenir Next", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      sans-serif;
 
     /* Nenos Food — laranja #F97316 · amarelo #FBBF24 */
-    --background: 34 100% 97%;
+    --background: 33 100% 98%;
     --foreground: 24 10% 10%;
 
     --card: 0 0% 100%;
@@ -86,6 +87,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: -0.01em;
   }
 
   /* Foco acessível */
@@ -154,6 +156,11 @@
 
   .shadow-orange-lg {
     @apply shadow-xl shadow-primary/40;
+  }
+
+  /* Sombra premium para cards elevados (restaurantes, produtos, hero) */
+  .shadow-nenos-elevated {
+    box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.28);
   }
 
   /* Scrollbar oculta (para carrosséis) */
