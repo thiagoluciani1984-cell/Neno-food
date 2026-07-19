@@ -35,7 +35,20 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint
+        run: |
+          set +e
+          npm run lint > lint-output.txt 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            {
+              echo "## Lint failed"
+              echo '```'
+              cat lint-output.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat lint-output.txt
+          exit $code
 
       - name: Typecheck
         run: npm run typecheck
