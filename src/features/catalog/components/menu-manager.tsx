@@ -17,6 +17,7 @@ import {
   toggleProductAvailabilityAction,
 } from "@/features/catalog/actions";
 import { formatBRL } from "@/lib/money";
+import { resolveMenuImage } from "@/lib/menu-image-overrides";
 import type { Category, Product } from "@/types/database.types";
 
 export function MenuManager({
@@ -86,13 +87,14 @@ export function MenuManager({
           <div className="grid gap-3">
             {products.map((product) => {
               const cat = categories.find((c) => c.id === product.category_id);
+              const imageUrl = resolveMenuImage(product.slug, product.image_url);
               return (
                 <Card key={product.id}>
                   <CardContent className="flex items-center gap-4 p-4">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {product.image_url ? (
+                      {imageUrl ? (
                         <Image
-                          src={product.image_url}
+                          src={imageUrl}
                           alt={product.name}
                           fill
                           sizes="64px"

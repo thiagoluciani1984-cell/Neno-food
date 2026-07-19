@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatBRL } from "@/lib/money";
+import { resolveMenuImage } from "@/lib/menu-image-overrides";
 import { fetchProductOptionsAction } from "@/features/catalog/actions-options-fetch";
 import { useCart } from "@/features/cart/use-cart";
 import {
@@ -133,6 +134,7 @@ function ProductAddDialogBody({
   const [quantity, setQuantity] = useState(1);
 
   const basePrice = effectivePriceCents(product);
+  const imageUrl = resolveMenuImage(product.slug, product.image_url);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,7 +206,7 @@ function ProductAddDialogBody({
         basePriceCents: basePrice,
         unitPriceCents: unitPrice,
         quantity,
-        imageUrl: product.image_url,
+        imageUrl,
         notes: notes || undefined,
         options: snapshots,
       },
@@ -225,9 +227,9 @@ function ProductAddDialogBody({
         <div className="space-y-4">
           <div className="flex gap-4">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
-              {product.image_url ? (
+              {imageUrl ? (
                 <Image
-                  src={product.image_url}
+                  src={imageUrl}
                   alt={product.name}
                   fill
                   className="object-cover"

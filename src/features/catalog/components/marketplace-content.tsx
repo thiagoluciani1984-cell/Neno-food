@@ -32,6 +32,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { formatBRL } from "@/lib/money";
+import { resolveMenuImage } from "@/lib/menu-image-overrides";
 import { MarketplaceSearchBar } from "@/features/catalog/components/store-header";
 import {
   marketplacePromos,
@@ -423,15 +424,16 @@ function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
 
 function FeaturedProductCard({ product, restaurant }: MarketplaceProductHit) {
   const price = product.promo_price_cents ?? product.price_cents;
+  const imageUrl = resolveMenuImage(product.slug, product.image_url);
   return (
     <Link
       href={`/${restaurant.slug}?produto=${product.slug}`}
       className="group flex gap-4 overflow-hidden rounded-[28px] border border-orange-100/70 bg-white p-3 shadow-nenos-elevated transition-transform hover-nenos-lift"
     >
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-muted sm:h-28 sm:w-28">
-        {product.image_url ? (
+        {imageUrl ? (
           <Image
-            src={product.image_url}
+            src={imageUrl}
             alt={product.name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
