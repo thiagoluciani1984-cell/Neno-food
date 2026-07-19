@@ -40,12 +40,8 @@ jobs:
           npm run lint > lint-output.txt 2>&1
           code=$?
           if [ $code -ne 0 ]; then
-            {
-              echo "## Lint failed"
-              echo '```'
-              cat lint-output.txt
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
+            msg=$(tail -c 900 lint-output.txt | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::LINT_OUTPUT: $msg"
           fi
           cat lint-output.txt
           exit $code
