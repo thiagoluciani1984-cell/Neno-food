@@ -35,16 +35,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: |
-          set +e
-          npm run lint > lint-output.txt 2>&1
-          code=$?
-          if [ $code -ne 0 ]; then
-            msg=$(tail -c 900 lint-output.txt | sed ':a;N;$!ba;s/\n/%0A/g')
-            echo "::error::LINT_OUTPUT: $msg"
-          fi
-          cat lint-output.txt
-          exit $code
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
