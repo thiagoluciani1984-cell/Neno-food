@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/infra/supabase/server";
+import { PUBLIC_RESTAURANT_SETTINGS_COLUMNS } from "@/features/catalog/queries";
 import type { Product, Restaurant, RestaurantSettings } from "@/types/database.types";
 
 export interface RestaurantCard {
@@ -69,9 +70,10 @@ export async function listActiveRestaurants(): Promise<RestaurantCard[]> {
   try {
     const { data } = await supabase
       .from("restaurant_settings")
-      .select("*")
+      .select(PUBLIC_RESTAURANT_SETTINGS_COLUMNS)
       .in("restaurant_id", ids)
-      .abortSignal(settingsController.signal);
+      .abortSignal(settingsController.signal)
+      .returns<RestaurantSettings[]>();
 
     settings = (data ?? []) as RestaurantSettings[];
   } catch {
