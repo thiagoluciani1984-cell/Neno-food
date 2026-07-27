@@ -5,8 +5,8 @@ import type { OrderWithItems } from "@/types/database.types";
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   pix: "PIX",
   cash: "Dinheiro",
-  card: "Cartão na entrega",
-  online: "Pago online",
+  card: "Cartão (maquininha)",
+  online: "PIX ou cartão online",
 };
 
 /** Monta o cupom térmico de um pedido, no mesmo espírito do que iFood/99Food imprimem. */
@@ -62,10 +62,26 @@ export function buildOrderReceipt(order: OrderWithItems, restaurantName: string)
   receipt.bold(true).row("TOTAL", formatBRL(order.total_cents)).bold(false);
   receipt.divider();
 
-  receipt.text(`Pagamento: ${PAYMENT_METHOD_LABEL[order.payment_method] ?? order.payment_method}`);
-  if (order.payment_method === "cash" && order.change_for_cents) {
-    receipt.text(`Troco para: ${formatBRL(order.change_for_cents)}`);
+  const alreadyPaid = order.payment_method === "online" && order.payment_status === "paid";
+
+  receipt.align("center").bold(true).doubleSize(true);
+  receipt.text(alreadyPaid ? "JA PAGO" : "COBRAR NA ENTREGA");
+  receipt.doubleSize(false);
+  receipt.align("left");
+
+  if (alreadyPaid) {
+    receipt.text("Pago pela plataforma - nao cobrar do cliente.");
+  } else {
+    receipt.text(`Forma: ${PAYMENT_METHOD_LABEL[order.payment_method] ?? order.payment_method}`);
+    if (order.payment_method === "cash" && order.change_for_cents) {
+      const troco = Math.max(0, order.change_for_cents - order.total_cents);
+      receipt.text(`Cliente paga com: ${formatBRL(order.change_for_cents)}`);
+      receipt.bold(true).text(`LEVAR TROCO: ${formatBRL(troco)}`).bold(false);
+    } else if (order.payment_method === "cash") {
+      receipt.text("Cliente não pediu troco (valor exato).");
+    }
   }
+  receipt.bold(false);
 
   receipt.feed(1).align("center").text("Nenos Food");
   receipt.cut();

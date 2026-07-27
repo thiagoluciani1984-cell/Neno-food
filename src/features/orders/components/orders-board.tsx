@@ -17,6 +17,7 @@ import {
 import { updateOrderStatusAction } from "@/features/orders/actions";
 import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
 import { ElapsedTimeBadge } from "@/features/orders/components/elapsed-time-badge";
+import { PaymentInfoBadge } from "@/features/orders/components/payment-info-badge";
 import { useNow } from "@/features/orders/hooks/use-now";
 import { getEstimatedReadyAtMs, isAboutToBeLate } from "@/features/orders/prep-time";
 import {
@@ -229,6 +230,8 @@ export function OrdersBoard({
                         {formatBRL(order.total_cents)}
                       </span>
                     </div>
+
+                    <PaymentInfoBadge order={order} />
 
                     <div className="flex flex-wrap gap-2">
                       {nextStatuses(order.status).map((ns) => (
