@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import { getDashboardRestaurantId } from "@/features/auth/get-session";
+import {
+  getDashboardRestaurantId,
+  getDashboardRestaurantSummary,
+} from "@/features/auth/get-session";
 import { getActiveOrders } from "@/features/orders/queries";
 import { OrdersBoard } from "@/features/orders/components/orders-board";
 import { OrdersTable } from "@/features/orders/components/orders-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SoundToggle } from "@/components/shared/sound-toggle";
+import { PrinterConnectButton } from "@/features/orders/components/printer-connect-button";
 
 export const metadata: Metadata = { title: "Pedidos" };
 
@@ -14,7 +18,10 @@ export default async function OrdersPage() {
     return <p className="text-muted-foreground">Nenhum restaurante encontrado.</p>;
   }
 
-  const orders = await getActiveOrders(restaurantId);
+  const [orders, restaurant] = await Promise.all([
+    getActiveOrders(restaurantId),
+    getDashboardRestaurantSummary(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -25,7 +32,10 @@ export default async function OrdersPage() {
             Painel de produção (KDS) — atualiza em tempo real.
           </p>
         </div>
-        <SoundToggle />
+        <div className="flex items-center gap-2">
+          <PrinterConnectButton />
+          <SoundToggle />
+        </div>
       </div>
       <Card>
         <CardHeader>
@@ -44,7 +54,11 @@ export default async function OrdersPage() {
           />
         </CardContent>
       </Card>
-      <OrdersBoard restaurantId={restaurantId} initialOrders={orders} />
+      <OrdersBoard
+        restaurantId={restaurantId}
+        restaurantName={restaurant?.name ?? "Nenos Food"}
+        initialOrders={orders}
+      />
     </div>
   );
 }

@@ -24,6 +24,8 @@ import {
   playOrderCancelledAlert,
   playAboutToBeLateAlert,
 } from "@/lib/sound";
+import { printBytes, hasPairedPrinter } from "@/lib/printer/serial-printer";
+import { buildOrderReceipt } from "@/features/orders/print-receipt";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
 const COLUMNS: OrderStatus[] = [
@@ -36,9 +38,11 @@ const COLUMNS: OrderStatus[] = [
 
 export function OrdersBoard({
   restaurantId,
+  restaurantName,
   initialOrders,
 }: {
   restaurantId: string;
+  restaurantName: string;
   initialOrders: OrderWithItems[];
 }) {
   const [orders, setOrders] = useState<OrderWithItems[]>(initialOrders);
@@ -80,6 +84,10 @@ export function OrdersBoard({
                 toast.success(`Novo pedido #${full.order_number}!`, {
                   description: full.customer_name ?? undefined,
                 });
+                if (await hasPairedPrinter()) {
+                  const res = await printBytes(buildOrderReceipt(full, restaurantName));
+                  if (!res.ok) toast.error(`Falha ao imprimir pedido #${full.order_number}: ${res.error}`);
+                }
               }
             } else if (payload.eventType === "UPDATE") {
               const terminal = row.status === "delivered" || row.status === "cancelled";
