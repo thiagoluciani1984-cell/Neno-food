@@ -318,21 +318,24 @@ export async function completeDeliveryAction(
   }
 
   const now = new Date().toISOString();
-  const { error } = await supabase
+  // .select() aqui é o que permite detectar se essa chamada foi de fato
+  // quem completou a entrega — sem isso, um duplo-toque concorrente faria
+  // as duas chamadas incrementarem as estatísticas do entregador por uma
+  // única entrega real.
+  const { data: completedRows, error } = await supabase
     .from("orders")
     .update({ status: "delivered", delivered_at: now })
     .eq("id", orderId)
     .eq("driver_id", driver.id)
-    .eq("status", "out_for_delivery");
+    .eq("status", "out_for_delivery")
+    .select("id, delivery_fee_cents");
 
   if (error) return { error: error.message };
+  if (!completedRows || completedRows.length === 0) {
+    return { error: "Essa entrega já foi confirmada." };
+  }
 
-  // Incrementar estatísticas e liberar entregador
-  const { data: order } = await supabase
-    .from("orders")
-    .select("delivery_fee_cents")
-    .eq("id", orderId)
-    .maybeSingle<{ delivery_fee_cents: number }>();
+  const order = completedRows[0] as { id: string; delivery_fee_cents: number };
 
   // Atualizar estatísticas manualmente
   const { data: driverStats } = await supabase
@@ -435,6 +438,7 @@ export async function getOptimizedRouteAction(
     .from("orders")
     .select("id, order_number, customer_name, delivery_address")
     .eq("driver_id", driver.id)
+    .eq("status", "out_for_delivery")
     .in("id", orderIds);
 
   if (!orders || orders.length === 0) return { error: "Pedidos não encontrados." };

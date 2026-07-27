@@ -435,18 +435,20 @@ export async function createOrderAction(
     return { ok: false, error: "Falha ao registrar pagamento. Tente novamente." };
   }
 
-  if (couponId && appliedCoupon) {
-    await supabase
-      .from("coupons")
-      .update({ used_count: appliedCoupon.used_count + 1 })
-      .eq("id", couponId);
+  if (couponId) {
+    await supabase.rpc("adjust_coupon_usage", { p_coupon_id: couponId, p_delta: 1 });
   }
 
   if (wheelSpinId) {
+    // Reivindicação condicional: se outra requisição concorrente (ex.:
+    // duplo clique) já tiver preenchido order_id nesse spin entre a leitura
+    // e agora, esse update não afeta nenhuma linha — evita a tabela de
+    // giros ficar com referência trocada entre dois pedidos.
     await supabase
       .from("launch_wheel_spins")
       .update({ order_id: order.id })
-      .eq("id", wheelSpinId);
+      .eq("id", wheelSpinId)
+      .is("order_id", null);
   }
 
   if (isGuest && data.type === "delivery" && data.address) {
@@ -564,9 +566,9 @@ export async function updateOrderStatusAction(
 
   const { data: current } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, coupon_id")
     .eq("id", orderId)
-    .single<{ status: OrderStatus }>();
+    .single<{ status: OrderStatus; coupon_id: string | null }>();
 
   if (!current) return { ok: false, error: "Pedido não encontrado." };
   if (!canTransition(current.status, nextStatus)) {
@@ -580,15 +582,42 @@ export async function updateOrderStatusAction(
   if (nextStatus === "delivered") timestamps.delivered_at = now;
   if (nextStatus === "cancelled") timestamps.cancelled_at = now;
 
-  const { error } = await supabase
+  // Compare-and-swap: só aplica se o status ainda for o mesmo que acabamos
+  // de ler. Evita que duas ações concorrentes (dois cliques, ou essa ação
+  // correndo contra um webhook de pagamento) validem contra o mesmo status
+  // e uma delas escreva por cima de uma transição já mais avançada.
+  const { data: updatedRows, error } = await supabase
     .from("orders")
     .update({ status: nextStatus, ...timestamps })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .eq("status", current.status)
+    .select("id");
 
   if (error) return { ok: false, error: "Falha ao atualizar status." };
+  if (!updatedRows || updatedRows.length === 0) {
+    return {
+      ok: false,
+      error: "Este pedido já foi atualizado em outra ação. Atualize a página.",
+    };
+  }
 
   if (nextStatus === "out_for_delivery") {
     await ensureDeliveryCode(orderId, supabase);
+  }
+
+  if (nextStatus === "cancelled") {
+    // Pedido cancelado não deve consumir cupom nem giro da roleta de
+    // lançamento — devolve os dois pra que o cliente possa usar de novo
+    // num pedido que realmente aconteça. Client admin porque quem cancela
+    // aqui normalmente é o restaurante, que não tem RLS pra mexer no giro
+    // de um cliente que não é ele.
+    if (current.coupon_id) {
+      await supabase.rpc("adjust_coupon_usage", { p_coupon_id: current.coupon_id, p_delta: -1 });
+    }
+    await createAdminClient()
+      .from("launch_wheel_spins")
+      .update({ order_id: null })
+      .eq("order_id", orderId);
   }
 
   await notifyOrderStatusChange(orderId, nextStatus);

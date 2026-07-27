@@ -85,9 +85,13 @@ export function OrdersBoard({
                 toast.success(`Novo pedido #${full.order_number}!`, {
                   description: full.customer_name ?? undefined,
                 });
-                if (await hasPairedPrinter()) {
-                  const res = await printBytes(buildOrderReceipt(full, restaurantName));
-                  if (!res.ok) toast.error(`Falha ao imprimir pedido #${full.order_number}: ${res.error}`);
+                try {
+                  if (await hasPairedPrinter()) {
+                    const res = await printBytes(buildOrderReceipt(full, restaurantName));
+                    if (!res.ok) toast.error(`Falha ao imprimir pedido #${full.order_number}: ${res.error}`);
+                  }
+                } catch {
+                  toast.error(`Falha ao imprimir pedido #${full.order_number}. Confira a impressora.`);
                 }
               }
             } else if (payload.eventType === "UPDATE") {
@@ -119,6 +123,11 @@ export function OrdersBoard({
   const alertedAboutToBeLateRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    const activeIds = new Set(orders.map((o) => o.id));
+    for (const id of alertedAboutToBeLateRef.current) {
+      if (!activeIds.has(id)) alertedAboutToBeLateRef.current.delete(id);
+    }
+
     for (const order of orders) {
       if (
         order.status !== "received" &&

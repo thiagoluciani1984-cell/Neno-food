@@ -17,10 +17,26 @@ interface RawOrder {
   created_at: string;
 }
 
+// Vercel roda em UTC — sem isso, pedidos feitos nas últimas ~3h do mês
+// (horário de Brasília) caem no "mês seguinte" nas métricas, distorcendo
+// o gatilho de expansão (250 pedidos x 2 meses) bem na margem de cada mês.
+const SAO_PAULO_UTC_OFFSET_HOURS = 3; // UTC-3, sem horário de verão desde 2019
+
+function getSaoPauloYearMonth(now: Date): { year: number; month: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "numeric",
+  }).formatToParts(now);
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value) - 1;
+  return { year, month };
+}
+
 function monthBounds(offsetMonths: number) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + offsetMonths + 1, 1);
+  const { year, month } = getSaoPauloYearMonth(new Date());
+  const start = new Date(Date.UTC(year, month + offsetMonths, 1, SAO_PAULO_UTC_OFFSET_HOURS, 0, 0));
+  const end = new Date(Date.UTC(year, month + offsetMonths + 1, 1, SAO_PAULO_UTC_OFFSET_HOURS, 0, 0));
   return { start, end };
 }
 

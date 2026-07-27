@@ -32,8 +32,23 @@ export async function applyOrderPaymentUpdate(
     .eq("id", orderId)
     .single<{ status: OrderStatus }>();
 
-  if (!currentOrder || currentOrder.status === orderStatus) {
-    return { updated: false, orderStatus: currentOrder?.status ?? orderStatus };
+  if (!currentOrder) {
+    return { updated: false, orderStatus };
+  }
+
+  // Só avança o pedido a partir de um evento de pagamento se ele ainda
+  // estiver esperando confirmação. Um webhook atrasado ou duplicado que
+  // chega depois do pedido já ter avançado manualmente (ou já ter sido
+  // entregue/cancelado) NUNCA deve reabrir/regredir o status do pedido —
+  // só o payment_status é atualizado, pra manter o registro de pagamento
+  // correto sem corromper o estado do pedido.
+  if (currentOrder.status !== "payment_pending") {
+    await supabase.from("orders").update({ payment_status: paymentStatus }).eq("id", orderId);
+    return { updated: false, orderStatus: currentOrder.status };
+  }
+
+  if (orderStatus === "payment_pending") {
+    return { updated: false, orderStatus: currentOrder.status };
   }
 
   const timestamps: Record<string, string> = {};
