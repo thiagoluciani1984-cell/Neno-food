@@ -16,6 +16,7 @@ import {
 } from "@/core/domain/value-objects/order-status";
 import { updateOrderStatusAction } from "@/features/orders/actions";
 import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
+import { ElapsedTimeBadge } from "@/features/orders/components/elapsed-time-badge";
 import { playNewOrderChime } from "@/lib/sound";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
@@ -171,13 +172,16 @@ export function OrdersBoard({
                     <Separator />
 
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {new Date(order.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {new Date(order.created_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        <ElapsedTimeBadge createdAt={order.created_at} />
+                      </div>
                       <span className="font-bold text-primary">
                         {formatBRL(order.total_cents)}
                       </span>

@@ -14,6 +14,7 @@ export const settingsSchema = z.object({
 
   // Operação
   is_open: z.boolean(),
+  auto_accept_orders: z.boolean(),
   accepts_delivery: z.boolean(),
   accepts_pickup: z.boolean(),
   accepts_dine_in: z.boolean(),

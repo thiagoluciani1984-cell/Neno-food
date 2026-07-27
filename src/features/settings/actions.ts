@@ -26,6 +26,7 @@ export async function saveSettingsAction(
   const payload = {
     restaurant_id: restaurantId,
     is_open: data.is_open,
+    auto_accept_orders: data.auto_accept_orders,
     accepts_delivery: data.accepts_delivery,
     accepts_pickup: data.accepts_pickup,
     accepts_dine_in: data.accepts_dine_in,

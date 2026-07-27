@@ -41,6 +41,21 @@ function tone(ctx: AudioContext, freq: number, startTime: number, duration: numb
   osc.stop(startTime + duration + 0.02);
 }
 
+/** Toca um áudio pré-gravado (ElevenLabs) de public/sounds/. Usado junto do bipe para chamar mais atenção no balcão. */
+export function playVoiceAlert(fileName: string): void {
+  if (typeof window === "undefined") return;
+  if (!isSoundEnabled()) return;
+  try {
+    const audio = new Audio(`/sounds/${fileName}`);
+    audio.volume = 1;
+    void audio.play().catch(() => {
+      // autoplay bloqueado pelo navegador até haver interação do usuário — ignora
+    });
+  } catch {
+    // ignora
+  }
+}
+
 export function isSoundEnabled(): boolean {
   if (typeof window === "undefined") return true;
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -53,7 +68,7 @@ export function setSoundEnabled(enabled: boolean): void {
   listeners.forEach((listener) => listener());
 }
 
-/** Novo pedido no painel do restaurante (KDS): dois tons ascendentes. */
+/** Novo pedido no painel do restaurante (KDS): tons altos e insistentes + aviso falado. */
 export function playNewOrderChime(): void {
   if (!isSoundEnabled()) return;
   const ctx = getAudioContext();
@@ -61,11 +76,14 @@ export function playNewOrderChime(): void {
   try {
     void ctx.resume();
     const now = ctx.currentTime;
-    tone(ctx, 880, now, 0.16);
-    tone(ctx, 1175, now + 0.15, 0.24, 0.18);
+    tone(ctx, 880, now, 0.18, 0.9);
+    tone(ctx, 1175, now + 0.2, 0.28, 0.95);
+    tone(ctx, 880, now + 0.55, 0.18, 0.9);
+    tone(ctx, 1175, now + 0.75, 0.32, 0.95);
   } catch {
     // autoplay bloqueado pelo navegador ou API indisponível — ignora
   }
+  window.setTimeout(() => playVoiceAlert("novo-pedido.mp3"), 900);
 }
 
 /** Nova corrida disponível para o entregador: três beeps curtos e mais urgentes. */

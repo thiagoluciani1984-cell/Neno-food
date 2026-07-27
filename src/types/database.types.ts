@@ -118,6 +118,7 @@ export interface Restaurant {
 export interface RestaurantSettings {
   restaurant_id: string;
   is_open: boolean;
+  auto_accept_orders: boolean;
   accepts_delivery: boolean;
   accepts_pickup: boolean;
   accepts_dine_in: boolean;

@@ -21,3 +21,13 @@ export function formatPrepCountdown(estimatedReadyAtMs: number, nowMs: number): 
   if (diffMin >= 0) return { label: "Pronto a qualquer momento", isLate: false };
   return { label: `Atrasado ${Math.abs(diffMin)} min`, isLate: true };
 }
+
+/** Há quanto tempo o pedido chegou (contador crescente, independente do tempo de preparo). */
+export function formatElapsed(createdAt: string, nowMs: number): string {
+  const diffMin = Math.max(0, Math.floor((nowMs - new Date(createdAt).getTime()) / 60000));
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const hours = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+  return `há ${hours}h${mins > 0 ? ` ${mins}min` : ""}`;
+}

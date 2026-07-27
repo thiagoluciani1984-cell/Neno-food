@@ -60,6 +60,7 @@ export function SettingsForm({
     establishment_type: restaurant.establishment_type,
     cuisine: restaurant.cuisine,
     is_open: initial?.is_open ?? false,
+    auto_accept_orders: initial?.auto_accept_orders ?? false,
     accepts_delivery: initial?.accepts_delivery ?? true,
     accepts_pickup: initial?.accepts_pickup ?? false,
     accepts_dine_in: initial?.accepts_dine_in ?? false,
@@ -241,6 +242,14 @@ export function SettingsForm({
             description="Pedidos feitos na mesa pelo cardápio digital"
             checked={form.accepts_dine_in}
             onCheckedChange={(v) => set("accepts_dine_in", v)}
+          />
+          <Separator />
+          <SwitchRow
+            id="auto_accept_orders"
+            label="Aceitar pedidos automaticamente"
+            description='Enquanto o restaurante estiver "Aberto agora", pedidos novos já entram como confirmados, sem precisar clicar em aceitar'
+            checked={form.auto_accept_orders}
+            onCheckedChange={(v) => set("auto_accept_orders", v)}
           />
         </CardContent>
       </Card>
