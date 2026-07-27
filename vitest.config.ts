@@ -9,6 +9,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Next's bundler resolves the "browser" poison-pill field; Vite doesn't
+      // know that trick, so point it at a no-op module just for tests.
+      "server-only": path.resolve(__dirname, "./src/test/server-only-stub.ts"),
     },
   },
 });

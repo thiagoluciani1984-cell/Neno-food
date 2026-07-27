@@ -15,12 +15,14 @@ import {
 import {
   getDriverProfile,
   getAvailableOrders,
-  getActiveDelivery,
+  getActiveDeliveries,
   getDriverDeliveryHistory,
+  MAX_ACTIVE_ORDERS,
 } from "@/features/driver/queries";
 import { DriverStatusToggle } from "@/features/driver/components/driver-status-toggle";
 import { ActiveOrderCard } from "@/features/driver/components/active-order-card";
 import { AvailableOrdersPanel } from "@/features/driver/components/available-orders-panel";
+import { RoutePlanner } from "@/features/driver/components/route-planner";
 
 export const metadata: Metadata = { title: "Portal do Entregador" };
 
@@ -40,11 +42,13 @@ export default async function DriverPage() {
   const isApproved = driver.approval_status === "approved";
   const isOnline = driver.status === "available" || driver.status === "busy";
 
-  const [availableOrders, activeOrder, history] = await Promise.all([
-    isApproved && driver.status === "available"
+  const activeOrders = isApproved ? await getActiveDeliveries(driver.id) : [];
+  const hasRoom = activeOrders.length < MAX_ACTIVE_ORDERS;
+
+  const [availableOrders, history] = await Promise.all([
+    isApproved && driver.status === "available" && hasRoom
       ? getAvailableOrders()
       : Promise.resolve([]),
-    isApproved ? getActiveDelivery(driver.id) : Promise.resolve(null),
     getDriverDeliveryHistory(driver.id, 10),
   ]);
 
@@ -119,23 +123,36 @@ export default async function DriverPage() {
         <DriverStatusToggle
           currentStatus={driver.status as "offline" | "available" | "busy"}
           approvalStatus={driver.approval_status}
+          hasActiveOrders={activeOrders.length > 0}
         />
 
-        {/* Entrega ativa */}
-        {activeOrder && (
-          <div>
-            <h2 className="mb-3 font-semibold">Entrega atual</h2>
-            <ActiveOrderCard order={activeOrder} />
+        {/* Entregas ativas */}
+        {activeOrders.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="font-semibold">
+              Entregas ativas
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                {activeOrders.length}/{MAX_ACTIVE_ORDERS}
+              </span>
+            </h2>
+            {activeOrders.length >= 2 && (
+              <RoutePlanner orderIds={activeOrders.map((o) => o.id)} />
+            )}
+            <div className="space-y-3">
+              {activeOrders.map((order) => (
+                <ActiveOrderCard key={order.id} order={order} />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Pedidos disponíveis */}
-        {isApproved && driver.status === "available" && !activeOrder && (
+        {isApproved && driver.status === "available" && hasRoom && (
           <AvailableOrdersPanel initialOrders={availableOrders} />
         )}
 
         {/* Offline sem entrega ativa */}
-        {isApproved && !isOnline && !activeOrder && (
+        {isApproved && !isOnline && activeOrders.length === 0 && (
           <div className="rounded-xl border bg-white py-10 text-center">
             <p className="text-sm text-muted-foreground">
               Fique online para ver e aceitar pedidos.

@@ -6,7 +6,11 @@ import { createClient } from "@/infra/supabase/server";
 import { getSession } from "@/features/auth/get-session";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
 import { siteConfig } from "@/config/site";
-import { getAvailableOrders, type AvailableOrder } from "./queries";
+import { getAvailableOrders, MAX_ACTIVE_ORDERS, type AvailableOrder } from "./queries";
+import { geocodeAddress } from "@/features/delivery/geocode";
+import { mapsMultiStopUrl } from "@/features/delivery/maps";
+import { orderStopsByRoadDistance } from "@/features/delivery/routing";
+import type { DeliveryAddressSnapshot } from "@/types/database.types";
 import {
   driverSignupSchema,
   driverPersonalSchema,
@@ -245,6 +249,16 @@ export async function acceptOrderAction(orderId: string): Promise<Result> {
   if (driver.approval_status !== "approved") return { error: "Sua conta ainda não foi aprovada." };
   if (driver.status !== "available") return { error: "Você precisa estar disponível." };
 
+  const { count: activeCount } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("driver_id", driver.id)
+    .eq("status", "out_for_delivery");
+
+  if ((activeCount ?? 0) >= MAX_ACTIVE_ORDERS) {
+    return { error: `Você já está com o limite de ${MAX_ACTIVE_ORDERS} pedidos. Finalize um pra aceitar outro.` };
+  }
+
   // Atribuir pedido atomicamente (garante que não foi pego por outro)
   const { data: updated, error } = await supabase
     .from("orders")
@@ -262,12 +276,6 @@ export async function acceptOrderAction(orderId: string): Promise<Result> {
   if (error || !updated) return { error: "Pedido não disponível mais." };
 
   await ensureDeliveryCode(orderId, supabase);
-
-  // Marcar entregador como ocupado
-  await supabase
-    .from("drivers")
-    .update({ status: "busy" })
-    .eq("id", driver.id);
 
   revalidatePath("/driver");
   return { ok: true };
@@ -340,7 +348,6 @@ export async function completeDeliveryAction(
         total_deliveries: driverStats.total_deliveries + 1,
         total_earnings_cents:
           driverStats.total_earnings_cents + (order?.delivery_fee_cents ?? 0),
-        status: "available",
       })
       .eq("id", driver.id);
   }
@@ -384,4 +391,97 @@ export async function reportDriverLocationAction(
 
   if (error) return { error: error.message };
   return { ok: true };
+}
+
+// ─── Melhor rota entre entregas ativas ─────────────────────────────────
+
+export interface RouteStop {
+  orderId: string;
+  orderNumber: number;
+  customerName: string;
+  address: string;
+}
+
+export interface OptimizedRoute {
+  stops: RouteStop[];
+  mapsUrl: string;
+  skipped: RouteStop[];
+}
+
+function formatSnapshotAddress(addr: DeliveryAddressSnapshot | string | null): string {
+  if (!addr) return "";
+  if (typeof addr === "string") return addr;
+  return `${addr.street}, ${addr.number}, ${addr.district}, ${addr.city}`;
+}
+
+export async function getOptimizedRouteAction(
+  orderIds: string[],
+  driverLatitude: number,
+  driverLongitude: number
+): Promise<Result<OptimizedRoute>> {
+  const { profile } = await getSession();
+  if (!profile?.id) return { error: "Não autenticado." };
+  if (orderIds.length === 0) return { error: "Nenhum pedido informado." };
+
+  const supabase = await createClient();
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("id")
+    .eq("profile_id", profile.id)
+    .maybeSingle<{ id: string }>();
+  if (!driver) return { error: "Perfil não encontrado." };
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, order_number, customer_name, delivery_address")
+    .eq("driver_id", driver.id)
+    .in("id", orderIds);
+
+  if (!orders || orders.length === 0) return { error: "Pedidos não encontrados." };
+
+  const geocoded: (RouteStop & { latitude: number; longitude: number })[] = [];
+  const skipped: RouteStop[] = [];
+
+  for (const order of orders) {
+    const address = formatSnapshotAddress(
+      order.delivery_address as DeliveryAddressSnapshot | string | null
+    );
+    const stop: RouteStop = {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      customerName: order.customer_name ?? "",
+      address,
+    };
+
+    const coords = await geocodeAddress(
+      address ? `${address}, Brasil` : null
+    );
+
+    if (coords) {
+      geocoded.push({ ...stop, latitude: coords.latitude, longitude: coords.longitude });
+    } else {
+      skipped.push(stop);
+    }
+  }
+
+  const ordered = await orderStopsByRoadDistance(
+    { latitude: driverLatitude, longitude: driverLongitude },
+    geocoded
+  );
+
+  const mapsUrl = mapsMultiStopUrl(ordered.map((s) => s.address || `${s.latitude},${s.longitude}`));
+
+  return {
+    ok: true,
+    data: {
+      stops: ordered.map(({ orderId, orderNumber, customerName, address }) => ({
+        orderId,
+        orderNumber,
+        customerName,
+        address,
+      })),
+      mapsUrl,
+      skipped,
+    },
+  };
 }

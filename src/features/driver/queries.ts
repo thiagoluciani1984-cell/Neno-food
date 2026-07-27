@@ -106,7 +106,10 @@ export async function getAvailableOrders(): Promise<AvailableOrder[]> {
   });
 }
 
-export async function getActiveDelivery(driverId: string): Promise<Order | null> {
+/** Quantas entregas um entregador pode carregar ao mesmo tempo. */
+export const MAX_ACTIVE_ORDERS = 3;
+
+export async function getActiveDeliveries(driverId: string): Promise<Order[]> {
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -114,11 +117,10 @@ export async function getActiveDelivery(driverId: string): Promise<Order | null>
     .select("*")
     .eq("driver_id", driverId)
     .in("status", ["out_for_delivery", "confirmed", "preparing", "ready"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<Order>();
+    .order("created_at", { ascending: true })
+    .limit(MAX_ACTIVE_ORDERS);
 
-  return data;
+  return (data ?? []) as Order[];
 }
 
 export async function getDriverDeliveryHistory(

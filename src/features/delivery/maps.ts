@@ -29,3 +29,19 @@ export function openStreetMapEmbedUrl(lat: number, lng: number): string {
   const bbox = `${lng - pad},${lat - pad},${lng + pad},${lat + pad}`;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
 }
+
+/**
+ * Rota com múltiplas paradas: a última entrada é o destino final, as
+ * anteriores viram waypoints — Google Maps navega turn-by-turn por todas.
+ */
+export function mapsMultiStopUrl(stopsInVisitOrder: string[]): string {
+  if (stopsInVisitOrder.length === 0) return "";
+
+  const destination = stopsInVisitOrder[stopsInVisitOrder.length - 1];
+  const waypoints = stopsInVisitOrder.slice(0, -1);
+
+  const params = new URLSearchParams({ api: "1", destination });
+  if (waypoints.length > 0) params.set("waypoints", waypoints.join("|"));
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}

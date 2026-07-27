@@ -9,17 +9,19 @@ import { updateDriverStatusAction } from "../actions";
 interface DriverStatusToggleProps {
   currentStatus: "offline" | "available" | "busy";
   approvalStatus: string;
+  hasActiveOrders: boolean;
 }
 
 export function DriverStatusToggle({
   currentStatus,
   approvalStatus,
+  hasActiveOrders,
 }: DriverStatusToggleProps) {
   const [status, setStatus] = useState(currentStatus);
   const [pending, startTransition] = useTransition();
 
   const isOnline = status === "available" || status === "busy";
-  const isBusy = status === "busy";
+  const isBusy = hasActiveOrders;
   const isApproved = approvalStatus === "approved";
 
   function handleToggle() {
