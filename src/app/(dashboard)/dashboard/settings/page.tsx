@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getActiveRestaurantId } from "@/features/auth/get-session";
 import { getRestaurantSettings } from "@/features/settings/queries";
 import { SettingsForm } from "@/features/settings/components/settings-form";
-import { isPagarmeConfigured, isPagarmeDevMock } from "@/lib/payments";
+import { isAsaasConfigured, isAsaasDevMock } from "@/lib/payments";
 import { createClient } from "@/infra/supabase/server";
 import type { EstablishmentType } from "@/core/domain/value-objects/establishment-type";
 
@@ -29,8 +29,8 @@ export default async function SettingsPage() {
         cuisine: restaurant?.cuisine ?? "",
         establishment_type: restaurant?.establishment_type ?? "restaurant",
       }}
-      pagarmeConfigured={isPagarmeConfigured()}
-      pagarmeDevMock={isPagarmeDevMock()}
+      asaasConfigured={isAsaasConfigured()}
+      asaasDevMock={isAsaasDevMock()}
     />
   );
 }

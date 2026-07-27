@@ -11,11 +11,13 @@
     "db:build": "node scripts/build-full-setup.js",
     "db:apply": "node scripts/apply-migrations.js",
     "db:apply:full": "node scripts/apply-db.js",
-    "db:types": "supabase gen types typescript --local > src/types/database.types.ts",
-    "db:verify": "node scripts/verify-pagarme.js",
-    "pagarme:setup": "node scripts/setup-pagarme.js",
+    "db:types": "supabase gen types typescript --project-id lelimqdzvwafxzvrkszj > src/types/database.types.generated.ts",
+    "db:verify": "node scripts/verify-asaas.js",
+    "asaas:setup": "node scripts/setup-asaas.js",
     "icons:generate": "node scripts/generate-pwa-icons.js",
     "seed:studio": "node scripts/seed-nenos-studio.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -65,6 +67,7 @@
     "postcss": "^8.4.49",
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
   }
 }

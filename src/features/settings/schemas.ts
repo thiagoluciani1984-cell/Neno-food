@@ -49,8 +49,8 @@ export const settingsSchema = z.object({
   address_state: z.string().length(2, "Use a sigla do estado (ex: SP)").nullable(),
   address_zip: z.string().min(8, "Informe o CEP").nullable(),
 
-  // Pagar.me split (opcional)
-  pagarme_recipient_id: z.string().nullable().optional(),
+  // Asaas split (opcional)
+  asaas_wallet_id: z.string().nullable().optional(),
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>;

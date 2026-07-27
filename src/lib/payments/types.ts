@@ -1,59 +1,55 @@
 export type OnlinePaymentType = "pix" | "credit_card";
 
-export interface PagarmeOrderItem {
+export interface PaymentOrderItem {
   productId: string;
   name: string;
   quantity: number;
   unitPriceCents: number;
 }
 
-export interface PagarmeCustomerInput {
+export interface PaymentCustomerInput {
   name: string;
   email: string;
   document: string;
   phone: string;
 }
 
-export interface CreatePagarmeOrderInput {
+export interface CreatePaymentOrderInput {
   orderId: string;
   orderNumber: number;
   restaurantName: string;
-  restaurantRecipientId?: string | null;
+  restaurantWalletId?: string | null;
+  platformFeePercent?: number | null;
   totalCents: number;
-  items: PagarmeOrderItem[];
-  customer: PagarmeCustomerInput;
+  items: PaymentOrderItem[];
+  customer: PaymentCustomerInput;
   paymentType: OnlinePaymentType;
 }
 
-export interface PagarmePixPaymentData {
+export interface PixPaymentData {
   chargeId: string;
   orderCode: string;
   qrCode: string | null;
   qrCodeUrl: string | null;
+  qrCodeImageBase64: string | null;
   expiresAt: string | null;
 }
 
-export interface PagarmeCheckoutPaymentData {
+export interface CheckoutPaymentData {
   chargeId: string;
   orderCode: string;
   checkoutUrl: string | null;
 }
 
-export type PagarmePaymentResult =
-  | { type: "pix"; data: PagarmePixPaymentData }
-  | { type: "credit_card"; data: PagarmeCheckoutPaymentData };
+export type PaymentResult =
+  | { type: "pix"; data: PixPaymentData }
+  | { type: "credit_card"; data: CheckoutPaymentData };
 
-export interface PagarmeWebhookPayload {
-  type?: string;
-  data?: {
+export interface AsaasWebhookPayload {
+  event?: string;
+  payment?: {
     id?: string;
-    code?: string;
     status?: string;
-    metadata?: Record<string, string>;
-    charges?: Array<{
-      id?: string;
-      status?: string;
-      metadata?: Record<string, string>;
-    }>;
+    externalReference?: string | null;
   };
 }

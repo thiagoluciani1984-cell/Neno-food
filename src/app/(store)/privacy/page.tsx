@@ -14,7 +14,7 @@ const SECTIONS = [
   },
   {
     title: "2. Dados que coletamos",
-    body: "Podemos coletar: nome, e-mail, telefone, CPF (quando necessário para pagamento), endereço de entrega, histórico de pedidos, dados de pagamento (processados pelo Pagar.me — não armazenamos dados completos de cartão), localização do entregador durante a entrega ativa, e dados de uso da plataforma (logs, dispositivo, IP).",
+    body: "Podemos coletar: nome, e-mail, telefone, CPF (quando necessário para pagamento), endereço de entrega, histórico de pedidos, dados de pagamento (processados pela Asaas — não armazenamos dados completos de cartão), localização do entregador durante a entrega ativa, e dados de uso da plataforma (logs, dispositivo, IP).",
   },
   {
     title: "3. Como usamos seus dados",
@@ -22,7 +22,7 @@ const SECTIONS = [
   },
   {
     title: "4. Compartilhamento",
-    body: "Compartilhamos dados apenas quando necessário: com o restaurante do seu pedido, com o entregador designado (nome, endereço e telefone de contato), com processadores de pagamento (Pagar.me), com provedores de infraestrutura (Supabase, Vercel) e quando exigido por lei. Não vendemos seus dados pessoais.",
+    body: "Compartilhamos dados apenas quando necessário: com o restaurante do seu pedido, com o entregador designado (nome, endereço e telefone de contato), com processadores de pagamento (Asaas), com provedores de infraestrutura (Supabase, Vercel) e quando exigido por lei. Não vendemos seus dados pessoais.",
   },
   {
     title: "5. Retenção e segurança",

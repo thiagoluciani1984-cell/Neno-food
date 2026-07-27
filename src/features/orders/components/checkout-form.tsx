@@ -26,6 +26,8 @@ import { useCart } from "@/features/cart/use-cart";
 import { formatCartItemOptions } from "@/core/domain/entities/cart";
 import { useMounted } from "@/lib/use-mounted";
 import { createOrderAction, validateCouponAction } from "@/features/orders/actions";
+import { DiscountWheel } from "@/features/launch-wheel/components/discount-wheel";
+import type { WheelStatus } from "@/features/launch-wheel/queries";
 import type { Address } from "@/features/addresses/queries";
 import type { OrderType, PaymentMethod } from "@/types/database.types";
 
@@ -33,7 +35,7 @@ const PAYMENT_CONFIG: Record<PaymentMethod, { label: string; icon: React.Element
   pix:    { label: "PIX",             icon: Smartphone, description: "Aprovação imediata" },
   cash:   { label: "Dinheiro",        icon: Banknote,   description: "Pague na entrega" },
   card:   { label: "Cartão",          icon: CreditCard, description: "Débito ou crédito na entrega" },
-  online: { label: "Pagar online",    icon: CreditCard, description: "PIX ou cartão via Pagar.me" },
+  online: { label: "Pagar online",    icon: CreditCard, description: "PIX ou cartão via checkout seguro" },
 };
 
 interface CheckoutSettings {
@@ -49,6 +51,7 @@ interface CheckoutSettings {
   defaultPhone: string;
   isLoggedIn: boolean;
   savedAddresses?: Address[];
+  wheelStatus?: WheelStatus | null;
 }
 
 function addressFormFromSaved(saved: Address) {
@@ -153,7 +156,12 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
     return settings.deliveryFeeCents;
   }, [type, subtotal, settings]);
 
-  const discount = couponState.state === "valid" ? couponState.discountCents : 0;
+  const couponDiscount = couponState.state === "valid" ? couponState.discountCents : 0;
+  const wheelDiscountPercent = settings.wheelStatus?.activeSpin?.discount_percent ?? 0;
+  const wheelDiscount = wheelDiscountPercent
+    ? Math.round(((subtotal + deliveryFee - couponDiscount) * wheelDiscountPercent) / 100)
+    : 0;
+  const discount = couponDiscount + wheelDiscount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
   function selectSavedAddress(id: string) {
@@ -379,6 +387,23 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
           </CardContent>
         </Card>
 
+        {/* ── Roleta de lançamento ─────────────────────────────── */}
+        {settings.wheelStatus?.activeSpin ? (
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardContent className="flex items-center gap-3 p-4">
+              <span className="text-2xl">🎉</span>
+              <div>
+                <p className="font-semibold text-primary">
+                  {settings.wheelStatus.activeSpin.discount_percent}% de desconto aplicado neste pedido!
+                </p>
+                <p className="text-xs text-muted-foreground">Prêmio da roleta de lançamento.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : settings.wheelStatus?.canSpin ? (
+          <DiscountWheel />
+        ) : null}
+
         {/* ── Endereço (delivery) ──────────────────────────────── */}
         {type === "delivery" && (
           <Card>
@@ -493,7 +518,7 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
                   onClick={() => setOnlinePaymentType("credit_card")}
                   icon={CreditCard}
                   label="Cartão"
-                  description="Checkout seguro Pagar.me"
+                  description="Checkout seguro"
                 />
               </div>
               <div className="space-y-1.5">
@@ -592,10 +617,16 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
                 {deliveryFee === 0 ? "Grátis" : formatBRL(deliveryFee)}
               </span>
             </div>
-            {discount > 0 && (
+            {couponDiscount > 0 && (
               <div className="flex justify-between text-sm text-primary">
-                <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" /> Desconto</span>
-                <span>−{formatBRL(discount)}</span>
+                <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" /> Cupom</span>
+                <span>−{formatBRL(couponDiscount)}</span>
+              </div>
+            )}
+            {wheelDiscount > 0 && (
+              <div className="flex justify-between text-sm text-primary">
+                <span className="flex items-center gap-1">🎉 Roleta ({wheelDiscountPercent}%)</span>
+                <span>−{formatBRL(wheelDiscount)}</span>
               </div>
             )}
             <Separator />
@@ -604,12 +635,12 @@ export function CheckoutForm({ settings }: { settings: CheckoutSettings }) {
               <span className="text-primary">{formatBRL(total)}</span>
             </div>
 
-            {/* Aviso MercadoPago */}
+            {/* Aviso pagamento online */}
             {payment === "online" && (
               <div className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
                 {onlinePaymentType === "pix"
                   ? "Você verá o QR Code PIX na próxima tela. O pedido confirma automaticamente após o pagamento."
-                  : "Você será redirecionado ao checkout seguro do Pagar.me para pagar com cartão."}
+                  : "Você será redirecionado a um checkout seguro para pagar com cartão."}
               </div>
             )}
 

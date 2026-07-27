@@ -8,6 +8,8 @@ import { Logo } from "@/components/shared/logo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RestaurantRow } from "@/features/admin/components/restaurant-row";
+import { BusinessMetrics } from "@/features/admin/components/business-metrics";
+import { getAdminBusinessMetrics } from "@/features/admin/metrics";
 import { formatBRL } from "@/lib/money";
 import type { Restaurant } from "@/types/database.types";
 
@@ -19,9 +21,10 @@ export default async function AdminPage() {
   if (profile?.role !== "master_admin") redirect("/");
 
   const supabase = await createClient();
-  const [{ data: restaurants }, { data: orders }] = await Promise.all([
+  const [{ data: restaurants }, { data: orders }, metrics] = await Promise.all([
     supabase.from("restaurants").select("*").order("created_at", { ascending: false }),
     supabase.from("orders").select("total_cents, status"),
+    getAdminBusinessMetrics(),
   ]);
 
   const list = (restaurants ?? []) as Restaurant[];
@@ -67,6 +70,8 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
         </div>
+
+        <BusinessMetrics metrics={metrics} />
 
         <div>
           <h2 className="mb-3 font-serif text-xl font-bold">Restaurantes</h2>

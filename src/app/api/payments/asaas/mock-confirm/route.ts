@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { confirmMockOrderPayment } from "@/features/orders/sync-payment";
-import { isPagarmeDevMock } from "@/lib/payments";
+import { isAsaasDevMock } from "@/lib/payments";
 
 export async function POST(req: NextRequest) {
-  if (!isPagarmeDevMock()) {
+  if (!isAsaasDevMock()) {
     return NextResponse.json({ error: "not available" }, { status: 403 });
   }
 

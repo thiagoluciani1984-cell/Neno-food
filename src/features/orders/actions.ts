@@ -10,11 +10,11 @@ import { notifyOrderStatusChange } from "@/features/notifications/lib";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
 import { upsertGuestCustomer, saveGuestAddress } from "@/features/customers/guest";
 import {
-  createPagarmeOrder,
-  isPagarmeConfigured,
-  isPagarmeDevMock,
-  createMockPagarmePixOrder,
-  createMockPagarmeCreditCardOrder,
+  createAsaasOrder,
+  isAsaasConfigured,
+  isAsaasDevMock,
+  createMockAsaasPixOrder,
+  createMockAsaasCreditCardOrder,
 } from "@/lib/payments";
 import { checkoutSchema, type CheckoutInput } from "./schemas";
 import { resolveCheckoutItemOptions } from "./validate-item-options";
@@ -311,12 +311,34 @@ export async function createOrderAction(
     }
   }
 
-  const total = Math.max(0, subtotal + deliveryFee - discount);
+  // Roleta de lançamento (só cliente logado; desconto sempre lido do banco,
+  // nunca do que o cliente mandou no formulário).
+  let wheelSpinId: string | null = null;
+  let wheelDiscount = 0;
+  if (!isGuest && customerId) {
+    const { data: activeSpin } = await supabase
+      .from("launch_wheel_spins")
+      .select("id, discount_percent")
+      .eq("customer_id", customerId)
+      .is("order_id", null)
+      .order("order_sequence", { ascending: true })
+      .limit(1)
+      .maybeSingle<{ id: string; discount_percent: number }>();
+
+    if (activeSpin) {
+      wheelSpinId = activeSpin.id;
+      wheelDiscount = Math.round(
+        ((subtotal + deliveryFee - discount) * activeSpin.discount_percent) / 100
+      );
+    }
+  }
+
+  const total = Math.max(0, subtotal + deliveryFee - discount - wheelDiscount);
 
   const isOnlinePayment = data.paymentMethod === "online";
 
   if (isOnlinePayment) {
-    if (!isPagarmeConfigured() && !isPagarmeDevMock()) {
+    if (!isAsaasConfigured() && !isAsaasDevMock()) {
       return { ok: false, error: "Pagamento online indisponível no momento." };
     }
     const document = data.customerDocument?.replace(/\D/g, "") ?? "";
@@ -350,7 +372,7 @@ export async function createOrderAction(
       notes: data.notes ?? null,
       subtotal_cents: subtotal,
       delivery_fee_cents: deliveryFee,
-      discount_cents: discount,
+      discount_cents: discount + wheelDiscount,
       total_cents: total,
       change_for_cents: data.changeForCents ?? null,
       prep_minutes: prepMinutes,
@@ -407,7 +429,7 @@ export async function createOrderAction(
     method: data.paymentMethod,
     status: "pending",
     amount_cents: total,
-    provider: isOnlinePayment ? "pagarme" : null,
+    provider: isOnlinePayment ? "asaas" : null,
   });
   if (paymentError) {
     return { ok: false, error: "Falha ao registrar pagamento. Tente novamente." };
@@ -420,11 +442,18 @@ export async function createOrderAction(
       .eq("id", couponId);
   }
 
+  if (wheelSpinId) {
+    await supabase
+      .from("launch_wheel_spins")
+      .update({ order_id: order.id })
+      .eq("id", wheelSpinId);
+  }
+
   if (isGuest && data.type === "delivery" && data.address) {
     await saveGuestAddress(customerId!, data.address);
   }
 
-  // ── Pagar.me: cria cobrança PIX ou cartão ─────────────────────────────
+  // ── Asaas: cria cobrança PIX ou cartão ─────────────────────────────────
   if (isOnlinePayment) {
     try {
       const { data: restaurant } = await supabase
@@ -435,15 +464,16 @@ export async function createOrderAction(
 
       const paymentType = data.onlinePaymentType ?? "pix";
 
-      const pagarmeResult = isPagarmeDevMock()
+      const asaasResult = isAsaasDevMock()
         ? paymentType === "pix"
-          ? createMockPagarmePixOrder(order.id)
-          : createMockPagarmeCreditCardOrder(order.id)
-        : await createPagarmeOrder({
+          ? createMockAsaasPixOrder(order.id)
+          : createMockAsaasCreditCardOrder(order.id)
+        : await createAsaasOrder({
             orderId: order.id,
             orderNumber: order.order_number,
             restaurantName: restaurant?.name ?? "Nenos Food",
-            restaurantRecipientId: settings?.pagarme_recipient_id ?? null,
+            restaurantWalletId: settings?.asaas_wallet_id ?? null,
+            platformFeePercent: settings?.platform_fee_percent ?? null,
             totalCents: total,
             items: orderItems.map((item) => ({
               productId: item.product_id,
@@ -461,23 +491,24 @@ export async function createOrderAction(
           });
 
       const providerPayload =
-        pagarmeResult.type === "pix"
+        asaasResult.type === "pix"
           ? {
               type: "pix",
-              qr_code: pagarmeResult.data.qrCode,
-              qr_code_url: pagarmeResult.data.qrCodeUrl,
-              expires_at: pagarmeResult.data.expiresAt,
-              ...(isPagarmeDevMock() ? { mock: true } : {}),
+              qr_code: asaasResult.data.qrCode,
+              qr_code_url: asaasResult.data.qrCodeUrl,
+              qr_code_image_base64: asaasResult.data.qrCodeImageBase64,
+              expires_at: asaasResult.data.expiresAt,
+              ...(isAsaasDevMock() ? { mock: true } : {}),
             }
           : {
               type: "credit_card",
-              checkout_url: pagarmeResult.data.checkoutUrl,
+              checkout_url: asaasResult.data.checkoutUrl,
             };
 
       await supabase
         .from("payments")
         .update({
-          provider_ref: pagarmeResult.data.chargeId,
+          provider_ref: asaasResult.data.chargeId,
           provider_payload: providerPayload,
         })
         .eq("order_id", order.id);
@@ -485,9 +516,9 @@ export async function createOrderAction(
       revalidatePath("/dashboard/orders");
 
       const paymentRedirect =
-        pagarmeResult.type === "pix"
+        asaasResult.type === "pix"
           ? `/payment/pix?order=${order.id}`
-          : pagarmeResult.data.checkoutUrl ?? `/payment/pending?order=${order.id}`;
+          : asaasResult.data.checkoutUrl ?? `/payment/pending?order=${order.id}`;
 
       return {
         ok: true,
@@ -497,7 +528,7 @@ export async function createOrderAction(
         guestAccessToken: isGuest ? order.guest_access_token ?? undefined : undefined,
       };
     } catch (err) {
-      captureException(err, { orderId: order.id, context: "pagarme-checkout" });
+      captureException(err, { orderId: order.id, context: "asaas-checkout" });
       await supabase
         .from("orders")
         .update({ status: "cancelled", cancelled_at: new Date().toISOString() })

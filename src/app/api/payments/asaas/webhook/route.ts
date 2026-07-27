@@ -3,21 +3,15 @@ import { captureException, captureMessage } from "@/lib/monitoring";
 import {
   applyOrderPaymentUpdate,
   extractOrderIdFromWebhook,
-  resolvePagarmePaymentStatus,
+  resolveAsaasPaymentStatus,
 } from "@/lib/payments";
-import type { PagarmeWebhookPayload } from "@/lib/payments";
+import type { AsaasWebhookPayload } from "@/lib/payments";
 
 function verifyWebhookAuth(req: NextRequest): boolean {
-  const user = process.env.PAGARME_WEBHOOK_USER;
-  const pass = process.env.PAGARME_WEBHOOK_PASSWORD;
-  if (!user || !pass) return true;
+  const token = process.env.ASAAS_WEBHOOK_TOKEN;
+  if (!token) return true;
 
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Basic ")) return false;
-
-  const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
-  const [u, p] = decoded.split(":");
-  return u === user && p === pass;
+  return req.headers.get("asaas-access-token") === token;
 }
 
 export async function POST(req: NextRequest) {
@@ -25,42 +19,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let payload: PagarmeWebhookPayload;
+  let payload: AsaasWebhookPayload;
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
 
-  const eventType = payload.type ?? "";
-  const chargeStatus = payload.data?.charges?.[0]?.status ?? payload.data?.status;
-  const paymentStatus = resolvePagarmePaymentStatus(eventType, chargeStatus);
+  const eventType = payload.event ?? "";
+  const chargeStatus = payload.payment?.status;
+  const paymentStatus = resolveAsaasPaymentStatus(eventType, chargeStatus);
   const orderId = extractOrderIdFromWebhook(payload);
 
   if (!orderId) {
-    captureMessage("pagarme-webhook: order_id não encontrado", { eventType });
+    captureMessage("asaas-webhook: order_id não encontrado", { eventType });
     return NextResponse.json({ ok: true });
   }
 
   if (
     ![
-      "order.paid",
-      "charge.paid",
-      "order.payment_failed",
-      "charge.payment_failed",
-      "charge.pending",
-      "order.created",
+      "PAYMENT_RECEIVED",
+      "PAYMENT_CONFIRMED",
+      "PAYMENT_OVERDUE",
+      "PAYMENT_DELETED",
+      "PAYMENT_REFUNDED",
+      "PAYMENT_CHARGEBACK_REQUESTED",
     ].includes(eventType)
   ) {
     return NextResponse.json({ ok: true });
   }
 
-  const providerRef =
-    payload.data?.charges?.[0]?.id ?? payload.data?.id ?? null;
+  const providerRef = payload.payment?.id ?? null;
 
   try {
     await applyOrderPaymentUpdate(orderId, paymentStatus, providerRef);
-    captureMessage("pagarme-webhook: pagamento atualizado", {
+    captureMessage("asaas-webhook: pagamento atualizado", {
       eventType,
       orderId,
       paymentStatus,

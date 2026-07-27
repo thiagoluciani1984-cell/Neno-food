@@ -2,8 +2,8 @@ import "server-only";
 import { createAdminClient } from "@/infra/supabase/admin";
 import {
   applyOrderPaymentUpdate,
-  getPagarmeChargeStatus,
-  isPagarmeDevMock,
+  getAsaasChargeStatus,
+  isAsaasDevMock,
 } from "@/lib/payments";
 
 export async function syncOrderPaymentFromGateway(orderId: string) {
@@ -28,7 +28,7 @@ export async function syncOrderPaymentFromGateway(orderId: string) {
     };
   }
 
-  const gatewayStatus = await getPagarmeChargeStatus(payment.provider_ref);
+  const gatewayStatus = await getAsaasChargeStatus(payment.provider_ref);
   const result = await applyOrderPaymentUpdate(
     orderId,
     gatewayStatus,
@@ -45,7 +45,7 @@ export async function syncOrderPaymentFromGateway(orderId: string) {
 }
 
 export async function confirmMockOrderPayment(orderId: string) {
-  if (!isPagarmeDevMock()) {
+  if (!isAsaasDevMock()) {
     return { ok: false as const, error: "Modo mock indisponível." };
   }
 

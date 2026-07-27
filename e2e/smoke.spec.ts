@@ -4,7 +4,7 @@ test.describe("Páginas públicas", () => {
   test("homepage carrega", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Nenos Food/i);
-    await expect(page.getByRole("heading", { name: /categorias/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /restaurantes populares/i })).toBeVisible();
   });
 
   test("login renderiza formulário", async ({ page }) => {

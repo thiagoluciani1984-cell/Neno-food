@@ -7,7 +7,7 @@ Guia para colocar o projeto em produção (Vercel + Supabase Cloud).
 - Repositório no GitHub
 - Projeto Supabase ativo (região: **South America — São Paulo**)
 - Conta Vercel
-- (Opcional) Conta Pagar.me para PIX online
+- (Opcional) Conta Asaas para PIX online
 
 ---
 
@@ -40,13 +40,13 @@ Copie de `.env.local.example` e configure no **Vercel → Settings → Environme
 | `SUPABASE_SERVICE_ROLE_KEY` | Sim | Service role (server only) |
 | `NEXT_PUBLIC_SITE_URL` | Sim | `https://seu-dominio.vercel.app` |
 | `NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG` | Sim | `lucianis-di-qualita` |
-| `PAGARME_SECRET_KEY` | Produção | Chave secreta Pagar.me |
-| `PAGARME_DEV_MOCK` | Não | `false` em produção |
-| `PAGARME_PLATFORM_RECIPIENT_ID` | Split | ID recebedor plataforma |
-| `PAGARME_WEBHOOK_USER` | Recomendado | Basic auth do webhook |
-| `PAGARME_WEBHOOK_PASSWORD` | Recomendado | Senha do webhook |
+| `ASAAS_API_KEY` | Produção | Chave de API Asaas (produção) |
+| `ASAAS_SANDBOX` | Não | `false` em produção |
+| `ASAAS_DEV_MOCK` | Não | `false` em produção |
+| `ASAAS_PLATFORM_FEE_PERCENT` | Split | % da plataforma (padrão: 10) |
+| `ASAAS_WEBHOOK_TOKEN` | Recomendado | Token do header `asaas-access-token` |
 
-> **Nunca** defina `PAGARME_DEV_MOCK=true` em produção.
+> **Nunca** defina `ASAAS_DEV_MOCK=true` em produção.
 
 ---
 
@@ -63,16 +63,19 @@ Em **Authentication → URL Configuration**:
 
 ---
 
-## 4. Pagar.me (PIX online)
+## 4. Asaas (PIX online)
 
-1. Crie conta em [dashboard.pagar.me](https://dashboard.pagar.me)
-2. Copie `sk_live_...` ou `sk_test_...` → `PAGARME_SECRET_KEY`
-3. Configure webhook:
+1. Crie conta em [asaas.com](https://www.asaas.com) (produção) — a conta de
+   sandbox usada em desenvolvimento não vale para cobranças reais
+2. Copie a chave de API → `ASAAS_API_KEY` (defina `ASAAS_SANDBOX=false`)
+3. Gere o token de webhook: `npm run asaas:setup -- --webhook-token`
+4. Configure webhook no painel Asaas → Integrações → Webhooks:
    ```
-   https://seu-dominio.vercel.app/api/payments/pagarme/webhook
+   https://seu-dominio.vercel.app/api/payments/asaas/webhook
    ```
-4. Em cada restaurante: **Dashboard → Configurações → Recipient ID** (`rp_...`)
-5. Verifique: `npm run db:verify`
+   Header `asaas-access-token` com o valor gerado.
+5. Em cada restaurante: **Dashboard → Configurações → Wallet ID**
+6. Verifique: `npm run db:verify`
 
 ---
 
@@ -96,8 +99,8 @@ Output: Next.js (automático)
 - [ ] Marketplace lista restaurantes ativos (`/`)
 - [ ] Login/cadastro funcionando
 - [ ] Pedido teste (PIX na entrega) → aparece no KDS
-- [ ] PIX online (se Pagar.me configurado)
-- [ ] Webhook Pagar.me recebendo eventos
+- [ ] PIX online (se Asaas configurado)
+- [ ] Webhook Asaas recebendo eventos
 - [ ] Entregador: aprovar em `/admin/drivers`
 - [ ] Restaurante: aprovar em `/admin`
 - [ ] Realtime: status do pedido atualiza sem refresh
@@ -109,7 +112,7 @@ Output: Next.js (automático)
 1. Vercel → Domains → adicione seu domínio
 2. Atualize `NEXT_PUBLIC_SITE_URL`
 3. Atualize Redirect URLs no Supabase Auth
-4. Atualize webhook URL no Pagar.me
+4. Atualize webhook URL no painel Asaas
 
 ---
 
@@ -117,4 +120,4 @@ Output: Next.js (automático)
 
 - **Vercel:** Analytics + Logs (Functions)
 - **Supabase:** Dashboard → Logs, Database health
-- **Pagar.me:** Transações + Webhooks no painel
+- **Asaas:** Transações + Webhooks no painel

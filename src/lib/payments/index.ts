@@ -1,22 +1,22 @@
 export {
-  createPagarmeOrder,
-  createMockPagarmePixOrder,
-  createMockPagarmeCreditCardOrder,
+  createAsaasOrder,
+  createMockAsaasPixOrder,
+  createMockAsaasCreditCardOrder,
   extractOrderIdFromWebhook,
-  getPagarmeChargeStatus,
-  isPagarmeConfigured,
-  isPagarmeDevMock,
-  isPagarmeSandbox,
-  resolvePagarmePaymentStatus,
-} from "./pagarme";
+  getAsaasChargeStatus,
+  isAsaasConfigured,
+  isAsaasDevMock,
+  isAsaasSandbox,
+  resolveAsaasPaymentStatus,
+} from "./asaas";
 
 export { applyOrderPaymentUpdate } from "./sync-payment";
 export type { GatewayPaymentStatus } from "./sync-payment";
 
 export type {
-  CreatePagarmeOrderInput,
+  CreatePaymentOrderInput,
   OnlinePaymentType,
-  PagarmePaymentResult,
-  PagarmePixPaymentData,
-  PagarmeWebhookPayload,
+  PaymentResult,
+  PixPaymentData,
+  AsaasWebhookPayload,
 } from "./types";

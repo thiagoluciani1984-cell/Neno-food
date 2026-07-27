@@ -16,6 +16,7 @@ import type { OrderStatus } from "@/types/database.types";
 interface PixPayload {
   qr_code?: string | null;
   qr_code_url?: string | null;
+  qr_code_image_base64?: string | null;
   expires_at?: string | null;
   mock?: boolean;
 }
@@ -77,7 +78,7 @@ export function PixPaymentView({
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/payments/pagarme/sync?order=${orderId}`);
+        const res = await fetch(`/api/payments/asaas/sync?order=${orderId}`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.status === "paid" || data.orderStatus === "received") {
@@ -106,7 +107,7 @@ export function PixPaymentView({
 
   function handleMockConfirm() {
     startMockTransition(async () => {
-      const res = await fetch("/api/payments/pagarme/mock-confirm", {
+      const res = await fetch("/api/payments/asaas/mock-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
@@ -137,10 +138,13 @@ export function PixPaymentView({
 
       <Card className="w-full">
         <CardContent className="flex flex-col items-center gap-4 p-6">
-          {pix.qr_code_url ? (
+          {pix.qr_code_url || pix.qr_code_image_base64 ? (
             <div className="rounded-xl border bg-white p-4">
               <Image
-                src={pix.qr_code_url}
+                src={
+                  pix.qr_code_url ??
+                  `data:image/png;base64,${pix.qr_code_image_base64}`
+                }
                 alt="QR Code PIX"
                 width={220}
                 height={220}
@@ -163,7 +167,7 @@ export function PixPaymentView({
           {pix.mock ? (
             <div className="w-full space-y-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-4 text-left">
               <p className="text-sm text-amber-900">
-                Sem chave Pagar.me configurada. Use o botão abaixo para simular
+                Sem chave Asaas configurada. Use o botão abaixo para simular
                 a confirmação do PIX em desenvolvimento.
               </p>
               <Button

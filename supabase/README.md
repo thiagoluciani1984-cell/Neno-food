@@ -43,8 +43,9 @@ node scripts/cleanup-lucianis-menu.js
 ```bash
 supabase start
 supabase db reset        # aplica migrations + seed
-npm run db:types         # regenera tipos TypeScript
 ```
+
+> `database.types.ts` é mantido à mão (veja seção abaixo) — não depende do `supabase start`.
 
 ---
 
@@ -92,21 +93,28 @@ npm run db:apply:full     # aplica full_setup.sql
 | 0019 | Índices adicionais |
 | 0020 | Favoritos de restaurante, features de usuário |
 | 0021 | Onboarding de entregador (trigger auto-create) |
-| 0022 | Pagar.me: recipient_id, provider_payload, PIX online |
+| 0022 | Pagar.me (histórico): recipient_id, provider_payload, PIX online |
+| 0023–0032 | Realtime de entrega, pedidos de convidado, ajustes de driver, tema do restaurante |
+| 0033 | Migração para Asaas: remove `pagarme_recipient_id`, adiciona `asaas_wallet_id` |
 
 ---
 
-## Regenerar tipos TypeScript
+## Tipos TypeScript
 
-**Local (Supabase CLI):**
-```bash
-npm run db:types
-```
+**`src/types/database.types.ts` é mantido à mão** — interfaces limpas
+(`Restaurant`, `Order`, `Coupon`...) espelhando as migrations. Ao mudar o
+schema, edite as interfaces relevantes nesse arquivo manualmente.
 
-**Cloud:**
-```bash
-npx supabase gen types typescript --project-id SEU_REF > src/types/database.types.ts
-```
+`npm run db:types` existe só como conferência: gera o formato bruto da
+Supabase CLI em `src/types/database.types.generated.ts` (gitignored, não
+usado pelo app) pra você comparar campo a campo. **Não redirecione a saída
+pra `database.types.ts`** — o formato da CLI substitui as interfaces por um
+único tipo `Database` aninhado, quebrando todos os imports do projeto.
+
+O projeto usa Supabase Cloud em todos os ambientes (não há stack local via
+Docker). Autentique a CLI uma vez com `npx supabase login`, ou gere um
+personal access token em supabase.com/dashboard/account/tokens e exporte
+como `SUPABASE_ACCESS_TOKEN`.
 
 ---
 
@@ -115,9 +123,9 @@ npx supabase gen types typescript --project-id SEU_REF > src/types/database.type
 | Comando | Descrição |
 |---------|-----------|
 | `npm run db:build` | Gera `full_setup.sql` |
-| `npm run db:apply` | Aplica migrations 0001–0022 |
+| `npm run db:apply` | Aplica todas as migrations em `supabase/migrations/` (ordem numérica) |
 | `npm run db:apply:full` | Aplica `full_setup.sql` inteiro |
-| `npm run db:types` | Regenera `database.types.ts` (local) |
+| `npm run db:types` | Gera tipos brutos em `database.types.generated.ts` (conferência apenas) |
 | `npm run db:verify` | Testa conexão Pagar.me |
 | `node scripts/verify-pagarme.js` | Idem |
 

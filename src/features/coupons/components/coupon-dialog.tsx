@@ -45,6 +45,9 @@ export function CouponDialog({
   const [minOrder, setMinOrder] = useState(
     coupon ? centsToReais(coupon.min_order_cents).toString() : ""
   );
+  const [perCustomerLimit, setPerCustomerLimit] = useState(
+    coupon?.per_customer_limit?.toString() ?? ""
+  );
   const [isActive, setIsActive] = useState(coupon?.is_active ?? true);
 
   async function onSubmit() {
@@ -56,6 +59,7 @@ export function CouponDialog({
       valuePercent: type === "percentage" ? Number(valuePercent) : null,
       valueCents: type === "fixed" ? reaisToCents(valueReais) : 0,
       minOrderCents: minOrder ? reaisToCents(minOrder) : 0,
+      perCustomerLimit: perCustomerLimit ? Number(perCustomerLimit) : null,
       isActive,
     });
     setSaving(false);
@@ -126,6 +130,20 @@ export function CouponDialog({
               onChange={(e) => setMinOrder(e.target.value)}
               placeholder="opcional"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Limite por cliente</Label>
+            <Input
+              type="number"
+              min={1}
+              value={perCustomerLimit}
+              onChange={(e) => setPerCustomerLimit(e.target.value)}
+              placeholder="Sem limite"
+            />
+            <p className="text-xs text-muted-foreground">
+              Ex.: 1 para cupom de primeiro pedido (cada cliente usa uma vez só).
+            </p>
           </div>
 
           <div className="flex items-center justify-between">

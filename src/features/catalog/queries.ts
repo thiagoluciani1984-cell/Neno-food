@@ -15,7 +15,7 @@ export interface MenuData {
 
 /**
  * Colunas de `restaurant_settings` seguras para consultas públicas
- * (marketplace, página do restaurante). Exclui `pagarme_recipient_id`,
+ * (marketplace, página do restaurante). Exclui `asaas_wallet_id`,
  * que não deve ser exposto a visitantes anônimos nem a clientes logados
  * navegando em restaurantes que não são os deles.
  */

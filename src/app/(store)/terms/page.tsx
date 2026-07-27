@@ -22,7 +22,7 @@ const SECTIONS = [
   },
   {
     title: "4. Pedidos e pagamentos",
-    body: "Ao confirmar um pedido, você declara ciência dos itens, valores, taxa de entrega e forma de pagamento escolhida. Pagamentos online (PIX) são processados pelo Pagar.me. Pagamentos na entrega são acordados diretamente com o entregador ou restaurante conforme a opção selecionada.",
+    body: "Ao confirmar um pedido, você declara ciência dos itens, valores, taxa de entrega e forma de pagamento escolhida. Pagamentos online (PIX) são processados pela Asaas. Pagamentos na entrega são acordados diretamente com o entregador ou restaurante conforme a opção selecionada.",
   },
   {
     title: "5. Cancelamentos e reembolsos",

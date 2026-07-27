@@ -6,6 +6,7 @@ import { getCustomerAddresses } from "@/features/addresses/queries";
 import { getGuestCheckoutDefaults } from "@/features/customers/guest";
 import { createClient } from "@/infra/supabase/server";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
+import { getWheelStatus } from "@/features/launch-wheel/queries";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = { title: "Checkout" };
@@ -21,6 +22,7 @@ export default async function CheckoutPage() {
   let savedAddresses: Awaited<ReturnType<typeof getCustomerAddresses>> = [];
   let defaultName = profile?.full_name ?? "";
   let defaultPhone = profile?.phone ?? "";
+  let wheelStatus: Awaited<ReturnType<typeof getWheelStatus>> | null = null;
 
   if (user) {
     const supabase = await createClient();
@@ -32,6 +34,7 @@ export default async function CheckoutPage() {
 
     if (customer?.id) {
       savedAddresses = await getCustomerAddresses(customer.id);
+      wheelStatus = await getWheelStatus(customer.id);
     }
   } else {
     const guest = await getGuestCheckoutDefaults();
@@ -57,6 +60,7 @@ export default async function CheckoutPage() {
         defaultPhone,
         isLoggedIn: !!user,
         savedAddresses,
+        wheelStatus,
       }}
     />
   );

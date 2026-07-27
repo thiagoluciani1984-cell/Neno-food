@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json(result);
   } catch (err) {
-    console.error("[pagarme-sync]", err);
+    console.error("[asaas-sync]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "sync failed" },
       { status: 500 }

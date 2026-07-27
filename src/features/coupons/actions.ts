@@ -14,6 +14,7 @@ const couponSchema = z
     valueCents: z.coerce.number().int().nonnegative().default(0),
     minOrderCents: z.coerce.number().int().nonnegative().default(0),
     usageLimit: z.coerce.number().int().nonnegative().nullable().optional(),
+    perCustomerLimit: z.coerce.number().int().nonnegative().nullable().optional(),
     expiresAt: z.string().nullable().optional(),
     isActive: z.boolean().default(true),
   })
@@ -42,6 +43,7 @@ export async function saveCouponAction(
     value_cents: parsed.data.type === "fixed" ? parsed.data.valueCents : 0,
     min_order_cents: parsed.data.minOrderCents,
     usage_limit: parsed.data.usageLimit ?? null,
+    per_customer_limit: parsed.data.perCustomerLimit ?? null,
     expires_at: parsed.data.expiresAt || null,
     is_active: parsed.data.isActive,
   };

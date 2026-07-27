@@ -1,9 +1,11 @@
-/**
- * Tipos do banco de dados — espelho manual das migrations 0001–0019.
- *
- * Em desenvolvimento, regenere automaticamente a partir do schema com:
- *   npm run db:types
- * (requer Supabase CLI + projeto local em execução)
+﻿/**
+ * Tipos do banco de dados — mantido À MÃO, espelhando as migrations em
+ * supabase/migrations/. NÃO rode `supabase gen types` direto pra cá — o
+ * formato bruto da CLI substitui as interfaces limpas (`Restaurant`,
+ * `Order`, etc.) por um único tipo `Database` aninhado, quebrando todos os
+ * imports do projeto. Ao mudar o schema, edite as interfaces aqui manualmente
+ * (ou rode `npm run db:types` para conferência — ele grava em
+ * database.types.generated.ts, sem tocar neste arquivo).
  */
 
 // ─── Enums (0001 + 0011) ──────────────────────────────────────────────────────
@@ -126,7 +128,8 @@ export interface RestaurantSettings {
   avg_prep_minutes: number;
   opening_hours: Record<string, { open: string; close: string; enabled: boolean }>;
   payment_methods: PaymentMethod[];
-  pagarme_recipient_id: string | null;
+  asaas_wallet_id: string | null;
+  platform_fee_percent: number | null;
   address_street: string | null;
   address_number: string | null;
   address_district: string | null;
@@ -640,6 +643,17 @@ export interface Refund {
   processed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Roleta de lançamento (0035) ──────────────────────────────────────────────
+
+export interface LaunchWheelSpin {
+  id: string;
+  customer_id: string;
+  order_sequence: number;
+  discount_percent: number;
+  order_id: string | null;
+  created_at: string;
 }
 
 // ─── Tipos compostos (joins comuns) ──────────────────────────────────────────

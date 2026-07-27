@@ -39,12 +39,14 @@ export function NotificationBell({
 
   useEffect(() => {
     const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
     supabase.auth.getUser().then(({ data }) => {
       const userId = data.user?.id;
-      if (!userId) return;
+      if (!userId || cancelled) return;
 
-      const channel = supabase
+      channel = supabase
         .channel(`notifications-${userId}`)
         .on(
           "postgres_changes",
@@ -64,11 +66,12 @@ export function NotificationBell({
           }
         )
         .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     });
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [refreshUnread]);
 
   async function handleClick(notification: Notification) {

@@ -3,7 +3,7 @@
 Marketplace multi-tenant de **delivery e gestão para restaurantes**.
 Operações ativas: **Luciani's Di Qualità** e **Point da Pizza**.
 
-Stack: **Next.js 16 + TypeScript + Tailwind + ShadCN UI** · **Supabase** (PostgreSQL, Auth, RLS, Storage, Realtime) · **Pagar.me** (PIX online).
+Stack: **Next.js 16 + TypeScript + Tailwind + ShadCN UI** · **Supabase** (PostgreSQL, Auth, RLS, Storage, Realtime) · **Asaas** (PIX online).
 
 ---
 
@@ -14,7 +14,7 @@ Stack: **Next.js 16 + TypeScript + Tailwind + ShadCN UI** · **Supabase** (Postg
 | Front | Next.js 16 (App Router, Server Actions), React 19, TypeScript, Tailwind, ShadCN UI |
 | Estado | Zustand (carrinho), TanStack Query |
 | Back | Supabase: PostgreSQL, Auth, Row Level Security, Storage, Realtime |
-| Pagamentos | Pagar.me (PIX online + split marketplace) |
+| Pagamentos | Asaas (PIX online + split marketplace) |
 | Infra | Vercel + GitHub |
 | Arquitetura | Clean Architecture + feature slices, multi-tenant desde o dia 1 |
 
@@ -47,7 +47,7 @@ cp .env.local.example .env.local
 # ou: cp .env.example .env.local
 ```
 
-Preencha as credenciais Supabase. Para dev sem Pagar.me, mantenha `PAGARME_DEV_MOCK=true`.
+Preencha as credenciais Supabase. Para dev sem Asaas, mantenha `ASAAS_DEV_MOCK=true`.
 Referência completa: [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
 ### 3. Banco de dados
@@ -80,8 +80,8 @@ Acesse http://localhost:3000
 | `npm run db:build` | Gera `supabase/full_setup.sql` |
 | `npm run db:apply` | Aplica migrations 0001–0024 no Supabase |
 | `npm run db:apply:full` | Aplica `full_setup.sql` (banco vazio) |
-| `npm run db:types` | Regenera tipos TS (Supabase CLI local) |
-| `npm run db:verify` | Testa conexão Pagar.me |
+| `npm run db:types` | Gera tipos brutos p/ conferência (`database.types.generated.ts`) — `database.types.ts` é mantido à mão |
+| `npm run db:verify` | Testa conexão Asaas |
 | `npm run seed:studio` | Popula Biblioteca Nenos Studio (imagens exemplo) |
 | `npm run test:e2e` | Testes smoke Playwright (requer `npm run dev`) |
 | `npm run icons:generate` | Gera ícones PWA a partir do logo |
@@ -114,7 +114,7 @@ node scripts/cleanup-lucianis-menu.js # Limpa cardápio genérico do Luciani's
 - Marketplace com busca de restaurantes e produtos
 - Cardápio com opções (borda, adicionais), carrinho persistente
 - Checkout: entrega/retirada, cupom, endereços salvos
-- PIX online (Pagar.me) ou pagamento na entrega
+- PIX online (Asaas) ou pagamento na entrega
 - Acompanhamento de pedido em tempo real + código PIN de entrega
 - Feed social, favoritos, avaliações, notificações
 
@@ -146,7 +146,7 @@ supabase/
   migrations/     # 22 migrations SQL versionadas
   seed.sql        # dados iniciais Luciani's
 docs/
-  DEPLOY.md       # guia de deploy Vercel + Pagar.me
+  DEPLOY.md       # guia de deploy Vercel + Asaas
 ```
 
 Princípios: **RLS** como segurança primária · dinheiro em **centavos** · preços **recalculados no servidor**.
@@ -170,7 +170,7 @@ Guia completo: [docs/DEPLOY.md](docs/DEPLOY.md)
 Resumo:
 1. `npm run db:apply` no Supabase Cloud
 2. Configure env vars na Vercel
-3. Configure Auth redirect URLs + webhook Pagar.me
+3. Configure Auth redirect URLs + webhook Asaas
 4. Deploy via GitHub → Vercel
 
 ---
