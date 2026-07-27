@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/infra/supabase/server";
 import type { RestaurantSettings } from "@/types/database.types";
 import { DEFAULT_HOURS } from "./schemas";
+import { syncAutoCloseState } from "./auto-close";
 
 export async function getRestaurantSettings(
   restaurantId: string
@@ -14,7 +15,7 @@ export async function getRestaurantSettings(
     .eq("restaurant_id", restaurantId)
     .maybeSingle<RestaurantSettings>();
 
-  return data ?? null;
+  return syncAutoCloseState(supabase, data ?? null);
 }
 
 export function buildDefaultSettings(restaurantId: string): Partial<RestaurantSettings> {

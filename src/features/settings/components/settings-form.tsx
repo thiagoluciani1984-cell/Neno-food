@@ -144,6 +144,10 @@ export function SettingsForm({
           <p className="text-sm text-muted-foreground">
             Gerencie horários, entrega e formas de pagamento do seu restaurante.
           </p>
+          <p className="text-xs text-muted-foreground">
+            A loja abre sozinha quando você faz login e fecha sozinha no horário definido em
+            &quot;Horários&quot; abaixo — o botão ao lado é só pra ajustes manuais.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button

@@ -1,5 +1,7 @@
 import "server-only";
 import { createClient } from "@/infra/supabase/server";
+import { createAdminClient } from "@/infra/supabase/admin";
+import { syncAutoCloseState } from "@/features/settings/auto-close";
 import type {
   Category,
   Product,
@@ -71,9 +73,14 @@ export async function getMenuBySlug(slug: string): Promise<MenuData | null> {
     ) as Product[],
   }));
 
+  const correctedSettings = await syncAutoCloseState(
+    createAdminClient(),
+    settings ?? null
+  );
+
   return {
     restaurant,
-    settings: settings ?? null,
+    settings: correctedSettings,
     categories: grouped.filter((c) => c.products.length > 0),
   };
 }

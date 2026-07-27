@@ -37,12 +37,18 @@ export async function loginAction(
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, restaurant_id")
       .eq("id", user.id)
       .single();
-    if (["restaurant", "master_admin", "staff"].includes(profile?.role ?? ""))
+    if (["restaurant", "master_admin", "staff"].includes(profile?.role ?? "")) {
       dest = "/dashboard";
-    else if (profile?.role === "moderator") dest = "/admin";
+      if (profile?.restaurant_id) {
+        await supabase
+          .from("restaurant_settings")
+          .update({ is_open: true, updated_at: new Date().toISOString() })
+          .eq("restaurant_id", profile.restaurant_id);
+      }
+    } else if (profile?.role === "moderator") dest = "/admin";
     else if (profile?.role === "driver") dest = "/driver";
   }
 
