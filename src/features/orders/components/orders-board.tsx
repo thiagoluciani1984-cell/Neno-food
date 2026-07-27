@@ -17,7 +17,7 @@ import {
 import { updateOrderStatusAction } from "@/features/orders/actions";
 import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
 import { ElapsedTimeBadge } from "@/features/orders/components/elapsed-time-badge";
-import { playNewOrderChime } from "@/lib/sound";
+import { playNewOrderChime, playOrderCancelledAlert } from "@/lib/sound";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
 const COLUMNS: OrderStatus[] = [
@@ -77,6 +77,12 @@ export function OrdersBoard({
               }
             } else if (payload.eventType === "UPDATE") {
               const terminal = row.status === "delivered" || row.status === "cancelled";
+              if (row.status === "cancelled") {
+                playOrderCancelledAlert();
+                toast.error(`Pedido #${row.order_number} cancelado!`, {
+                  description: "Pare o preparo se já tiver começado.",
+                });
+              }
               setOrders((prev) =>
                 terminal
                   ? prev.filter((o) => o.id !== row.id)

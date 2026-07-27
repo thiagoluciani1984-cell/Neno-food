@@ -86,6 +86,24 @@ export function playNewOrderChime(): void {
   window.setTimeout(() => playVoiceAlert("novo-pedido.mp3"), 900);
 }
 
+/** Pedido cancelado enquanto o restaurante pode estar preparando: alerta urgente + aviso falado. */
+export function playOrderCancelledAlert(): void {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    void ctx.resume();
+    const now = ctx.currentTime;
+    tone(ctx, 660, now, 0.15, 0.9);
+    tone(ctx, 440, now + 0.2, 0.25, 0.95);
+    tone(ctx, 660, now + 0.55, 0.15, 0.9);
+    tone(ctx, 440, now + 0.75, 0.3, 0.95);
+  } catch {
+    // autoplay bloqueado pelo navegador ou API indisponível — ignora
+  }
+  window.setTimeout(() => playVoiceAlert("pedido-cancelado.mp3"), 900);
+}
+
 /** Nova corrida disponível para o entregador: três beeps curtos e mais urgentes. */
 export function playDeliveryAlert(): void {
   if (!isSoundEnabled()) return;
