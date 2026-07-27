@@ -7,6 +7,7 @@ import {
 import { Sidebar } from "@/features/dashboard/components/sidebar";
 import { Topbar } from "@/features/dashboard/components/topbar";
 import { RestaurantSwitcher } from "@/features/dashboard/components/restaurant-switcher";
+import { ReviewAlertListener } from "@/features/reviews/components/review-alert-listener";
 
 export default async function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/30">
+      {restaurant?.id && <ReviewAlertListener restaurantId={restaurant.id} />}
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar

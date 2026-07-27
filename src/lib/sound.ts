@@ -104,6 +104,55 @@ export function playOrderCancelledAlert(): void {
   window.setTimeout(() => playVoiceAlert("pedido-cancelado.mp3"), 900);
 }
 
+/** Pedido prestes a atrasar (dentro da janela de aviso, antes de virar atraso de fato). */
+export function playAboutToBeLateAlert(): void {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    void ctx.resume();
+    const now = ctx.currentTime;
+    tone(ctx, 784, now, 0.15, 0.8);
+    tone(ctx, 784, now + 0.25, 0.15, 0.8);
+  } catch {
+    // autoplay bloqueado pelo navegador ou API indisponível — ignora
+  }
+  window.setTimeout(() => playVoiceAlert("pedido-quase-atrasando.mp3"), 700);
+}
+
+/** Avaliação 5 estrelas recebida: tom alegre + aviso falado. */
+export function playPositiveReviewAlert(): void {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    void ctx.resume();
+    const now = ctx.currentTime;
+    tone(ctx, 660, now, 0.14, 0.7);
+    tone(ctx, 880, now + 0.16, 0.14, 0.75);
+    tone(ctx, 1046, now + 0.32, 0.22, 0.8);
+  } catch {
+    // autoplay bloqueado pelo navegador ou API indisponível — ignora
+  }
+  window.setTimeout(() => playVoiceAlert("avaliacao-positiva.mp3"), 800);
+}
+
+/** Avaliação baixa (2 estrelas ou menos) recebida: tom de atenção + aviso falado. */
+export function playNegativeReviewAlert(): void {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    void ctx.resume();
+    const now = ctx.currentTime;
+    tone(ctx, 523, now, 0.2, 0.85);
+    tone(ctx, 392, now + 0.3, 0.3, 0.85);
+  } catch {
+    // autoplay bloqueado pelo navegador ou API indisponível — ignora
+  }
+  window.setTimeout(() => playVoiceAlert("avaliacao-negativa.mp3"), 900);
+}
+
 /** Nova corrida disponível para o entregador: três beeps curtos e mais urgentes. */
 export function playDeliveryAlert(): void {
   if (!isSoundEnabled()) return;

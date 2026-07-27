@@ -22,6 +22,16 @@ export function formatPrepCountdown(estimatedReadyAtMs: number, nowMs: number): 
   return { label: `Atrasado ${Math.abs(diffMin)} min`, isLate: true };
 }
 
+/** Ainda não atrasou, mas está a poucos minutos de atrasar (janela de aviso antecipado). */
+export function isAboutToBeLate(
+  estimatedReadyAtMs: number,
+  nowMs: number,
+  warningWindowMinutes = 5
+): boolean {
+  const diffMs = estimatedReadyAtMs - nowMs;
+  return diffMs >= 0 && diffMs <= warningWindowMinutes * 60000;
+}
+
 /** Há quanto tempo o pedido chegou (contador crescente, independente do tempo de preparo). */
 export function formatElapsed(createdAt: string, nowMs: number): string {
   const diffMin = Math.max(0, Math.floor((nowMs - new Date(createdAt).getTime()) / 60000));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Clock, Bike, ShoppingBag } from "lucide-react";
 import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
@@ -17,7 +17,13 @@ import {
 import { updateOrderStatusAction } from "@/features/orders/actions";
 import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
 import { ElapsedTimeBadge } from "@/features/orders/components/elapsed-time-badge";
-import { playNewOrderChime, playOrderCancelledAlert } from "@/lib/sound";
+import { useNow } from "@/features/orders/hooks/use-now";
+import { getEstimatedReadyAtMs, isAboutToBeLate } from "@/features/orders/prep-time";
+import {
+  playNewOrderChime,
+  playOrderCancelledAlert,
+  playAboutToBeLateAlert,
+} from "@/lib/sound";
 import type { OrderStatus, OrderWithItems } from "@/types/database.types";
 
 const COLUMNS: OrderStatus[] = [
@@ -99,6 +105,29 @@ export function OrdersBoard({
       if (channel) supabase.removeChannel(channel);
     };
   }, [restaurantId, fetchOrder]);
+
+  const now = useNow(20000);
+  const alertedAboutToBeLateRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    for (const order of orders) {
+      if (
+        order.status !== "received" &&
+        order.status !== "confirmed" &&
+        order.status !== "preparing"
+      ) {
+        continue;
+      }
+      if (alertedAboutToBeLateRef.current.has(order.id)) continue;
+
+      const estimatedReadyAtMs = getEstimatedReadyAtMs(order);
+      if (isAboutToBeLate(estimatedReadyAtMs, now)) {
+        alertedAboutToBeLateRef.current.add(order.id);
+        playAboutToBeLateAlert();
+        toast.warning(`Pedido #${order.order_number} está quase atrasando!`);
+      }
+    }
+  }, [orders, now]);
 
   async function advance(order: OrderWithItems, status: OrderStatus) {
     const res = await updateOrderStatusAction(order.id, status);
