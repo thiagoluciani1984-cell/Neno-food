@@ -26,8 +26,12 @@ function isIos(): boolean {
 
 export function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showIosHint, setShowIosHint] = useState(false);
-  const [dismissed, setDismissed] = useState(true);
+  const [showIosHint] = useState(() => isIos());
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (isStandalone()) return true;
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
+  });
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -36,15 +40,7 @@ export function PwaInstallPrompt() {
       });
     }
 
-    if (isStandalone()) return; // já instalado, não mostra nada
-    if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
-
-    setDismissed(false);
-
-    if (isIos()) {
-      setShowIosHint(true);
-      return;
-    }
+    if (dismissed || showIosHint) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -52,7 +48,7 @@ export function PwaInstallPrompt() {
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  }, [dismissed, showIosHint]);
 
   function dismiss() {
     window.localStorage.setItem(DISMISS_KEY, "1");

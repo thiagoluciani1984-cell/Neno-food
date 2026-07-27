@@ -8,6 +8,10 @@
  */
 
 let cachedPort: SerialPort | null = null;
+let openPromise: Promise<void> | null = null;
+// Serializa impressões: dois pedidos chegando quase juntos não podem tentar
+// abrir a porta ou pegar o writer ao mesmo tempo (Web Serial não permite).
+let printQueue: Promise<unknown> = Promise.resolve();
 
 export function isWebSerialSupported(): boolean {
   return typeof navigator !== "undefined" && !!navigator.serial;
@@ -39,17 +43,31 @@ export async function hasPairedPrinter(): Promise<boolean> {
 }
 
 export async function printBytes(bytes: Uint8Array): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Encadeia no fim da fila atual, garantindo que só uma impressão mexe na
+  // porta serial por vez (evita "port already open" / writer já travado).
+  const result = printQueue.then(() => printBytesInternal(bytes));
+  printQueue = result.catch(() => {});
+  return result;
+}
+
+async function printBytesInternal(
+  bytes: Uint8Array
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const port = await getSavedPrinterPort();
   if (!port) return { ok: false, error: "Nenhuma impressora conectada." };
 
   try {
     if (!port.readable && !port.writable) {
-      await port.open({ baudRate: 9600 });
+      if (!openPromise) openPromise = port.open({ baudRate: 9600 });
+      await openPromise;
     }
     const writer = port.writable?.getWriter();
     if (!writer) return { ok: false, error: "Porta da impressora não permite escrita." };
-    await writer.write(bytes);
-    writer.releaseLock();
+    try {
+      await writer.write(bytes);
+    } finally {
+      writer.releaseLock();
+    }
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Falha ao imprimir." };

@@ -13,12 +13,11 @@ import {
 import { ReceiptBuilder } from "@/lib/printer/escpos";
 
 export function PrinterConnectButton() {
-  const [supported, setSupported] = useState(true);
+  const [supported] = useState(() => isWebSerialSupported());
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    setSupported(isWebSerialSupported());
     void hasPairedPrinter().then(setConnected);
   }, []);
 

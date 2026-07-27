@@ -113,7 +113,7 @@ export function OrdersBoard({
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [restaurantId, fetchOrder]);
+  }, [restaurantId, restaurantName, fetchOrder]);
 
   const now = useNow(20000);
   const alertedAboutToBeLateRef = useRef<Set<string>>(new Set());
