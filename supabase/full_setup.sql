@@ -4,8 +4,8 @@
 -- NÃO edite este arquivo manualmente.
 -- Para regenerar: npm run db:build
 --
--- Conteúdo: 32 migrations (0001–0022) + seed.sql
--- Gerado em: 2026-07-19T10:31:42.698Z
+-- Conteúdo: 43 migrations (0001–0022) + seed.sql
+-- Gerado em: 2026-07-28T17:16:03.887Z
 -- =====================================================================
 
 
@@ -2705,6 +2705,360 @@ update public.restaurants set theme_primary = '#1B4332', theme_secondary = '#C9A
 
 update public.restaurants set theme_primary = '#EA580C', theme_secondary = '#171717'
   where slug = 'poit-da-pizza';
+
+
+-- ─── 0033_asaas_payments.sql ─────────────────────────────────────────────────────────
+
+-- Migração do gateway de pagamento: Pagar.me → Asaas
+alter table public.restaurant_settings
+  drop column if exists pagarme_recipient_id;
+
+alter table public.restaurant_settings
+  add column if not exists asaas_wallet_id text;
+
+comment on column public.restaurant_settings.asaas_wallet_id is
+  'walletId da subconta Asaas do restaurante, usado no split de pagamento';
+
+
+-- ─── 0034_platform_fee_percent.sql ─────────────────────────────────────────────────────────
+
+-- Comissão da plataforma configurável por restaurante (fallback: env ASAAS_PLATFORM_FEE_PERCENT)
+alter table public.restaurant_settings
+  add column if not exists platform_fee_percent numeric(5,2);
+
+comment on column public.restaurant_settings.platform_fee_percent is
+  'Comissão da plataforma (%) sobre pedidos pagos online para este restaurante. Nulo = usa ASAAS_PLATFORM_FEE_PERCENT.';
+
+
+-- ─── 0035_launch_wheel.sql ─────────────────────────────────────────────────────────
+
+-- Roleta de lançamento: desconto (10-50%) sorteado a cada um dos 5 primeiros
+-- pedidos de cada cliente logado.
+create table if not exists public.launch_wheel_spins (
+  id                uuid primary key default gen_random_uuid(),
+  customer_id       uuid not null references public.customers (id) on delete cascade,
+  order_sequence    smallint not null check (order_sequence between 1 and 5),
+  discount_percent  smallint not null check (discount_percent between 10 and 50),
+  order_id          uuid references public.orders (id) on delete set null,
+  created_at        timestamptz not null default now(),
+  unique (customer_id, order_sequence)
+);
+
+create index if not exists idx_launch_wheel_spins_customer on public.launch_wheel_spins (customer_id);
+
+alter table public.launch_wheel_spins enable row level security;
+
+drop policy if exists "launch_wheel_spins_select" on public.launch_wheel_spins;
+create policy "launch_wheel_spins_select" on public.launch_wheel_spins
+  for select using (
+    customer_id = public.current_customer_id()
+    or public.is_master_admin()
+  );
+
+drop policy if exists "launch_wheel_spins_insert" on public.launch_wheel_spins;
+create policy "launch_wheel_spins_insert" on public.launch_wheel_spins
+  for insert with check (
+    customer_id = public.current_customer_id()
+    or public.is_master_admin()
+  );
+
+drop policy if exists "launch_wheel_spins_update" on public.launch_wheel_spins;
+create policy "launch_wheel_spins_update" on public.launch_wheel_spins
+  for update using (
+    customer_id = public.current_customer_id()
+    or public.is_master_admin()
+  );
+
+comment on table public.launch_wheel_spins is
+  'Campanha de lançamento: 1 giro sorteado por cliente por pedido, nos 5 primeiros pedidos.';
+
+
+-- ─── 0036_fix_coupon_public_read.sql ─────────────────────────────────────────────────────────
+
+-- Bug pré-existente: a policy "coupons_staff" (0008_rls_policies.sql) só
+-- permite leitura pro dono do restaurante ou master_admin — nenhum cliente
+-- conseguia validar cupom no checkout, porque nem enxergava a linha via RLS.
+-- Adiciona leitura pública de cupons ATIVOS (dado não sensível — o cliente
+-- já precisa saber o código pra usar). A policy de gestão (staff) continua
+-- controlando insert/update/delete normalmente.
+drop policy if exists "coupons_public_select" on public.coupons;
+create policy "coupons_public_select" on public.coupons
+  for select using (is_active = true);
+
+
+-- ─── 0037_auto_accept_orders.sql ─────────────────────────────────────────────────────────
+
+-- Aceite automático de pedidos: quando ativado e o restaurante está aberto
+-- (is_open = true), um pedido que chega como "received" já entra direto
+-- como "confirmed", sem precisar de clique manual do restaurante.
+alter table public.restaurant_settings
+  add column if not exists auto_accept_orders boolean not null default false;
+
+comment on column public.restaurant_settings.auto_accept_orders is
+  'Se true, pedidos novos (status received) sao confirmados automaticamente enquanto is_open = true.';
+
+create or replace function public.auto_confirm_order()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_is_open boolean;
+  v_auto_accept boolean;
+begin
+  if new.status <> 'received' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and old.status = 'received' then
+    return new;
+  end if;
+
+  select is_open, auto_accept_orders
+    into v_is_open, v_auto_accept
+    from public.restaurant_settings
+    where restaurant_id = new.restaurant_id;
+
+  if coalesce(v_is_open, false) and coalesce(v_auto_accept, false) then
+    new.status := 'confirmed';
+    new.confirmed_at := coalesce(new.confirmed_at, now());
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_auto_confirm_order on public.orders;
+create trigger trg_auto_confirm_order
+  before insert or update of status on public.orders
+  for each row execute function public.auto_confirm_order();
+
+
+-- ─── 0038_atomic_coupon_usage.sql ─────────────────────────────────────────────────────────
+
+-- Corrige duas coisas na contagem de uso de cupom:
+-- 1. Condição de corrida: dois checkouts quase simultâneos liam o mesmo
+--    used_count e cada um escrevia used_count+1 por cima do outro (uma
+--    das duas contagens se perdia). Increment/decrement agora acontece
+--    dentro do próprio banco (update ... set used_count = used_count + N),
+--    atômico por linha.
+-- 2. RLS silenciosamente bloqueava esse update pra clientes logados: a
+--    policy "coupons_staff" só permite UPDATE por staff/master_admin, e
+--    o cliente comum não é nenhum dos dois — o incremento nunca acontecia
+--    de verdade fora do checkout como convidado (que usa o client admin).
+--    security definer faz a função rodar com privilégio de dono, então
+--    funciona pros dois casos.
+create or replace function public.adjust_coupon_usage(p_coupon_id uuid, p_delta int)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.coupons
+  set used_count = greatest(0, used_count + p_delta)
+  where id = p_coupon_id;
+$$;
+
+grant execute on function public.adjust_coupon_usage(uuid, int) to authenticated, anon;
+
+
+-- ─── 0039_driver_limit_and_refunds_rls.sql ─────────────────────────────────────────────────────────
+
+-- Corrige corrida onde um entregador podia aceitar mais de MAX_ACTIVE_ORDERS
+-- (3) pedidos simultâneos: a checagem de contagem na aplicação e o update
+-- atômico da linha são dois passos separados, então dois cliques quase
+-- juntos (ou duas abas) liam a mesma contagem antes de qualquer um dos
+-- dois updates acontecer. Trava por advisory lock (por driver) garante que
+-- as tentativas concorrentes do MESMO entregador rodem uma de cada vez.
+create or replace function public.enforce_max_active_orders()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count int;
+begin
+  if new.status = 'out_for_delivery' and new.driver_id is not null then
+    perform pg_advisory_xact_lock(hashtext(new.driver_id::text));
+
+    select count(*) into v_count
+    from public.orders
+    where driver_id = new.driver_id
+      and status = 'out_for_delivery'
+      and id <> new.id;
+
+    if v_count >= 3 then
+      raise exception 'MAX_ACTIVE_ORDERS_EXCEEDED';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_enforce_max_active_orders on public.orders;
+create trigger trg_enforce_max_active_orders
+  before update of driver_id, status on public.orders
+  for each row execute function public.enforce_max_active_orders();
+
+-- Fecha uma brecha de RLS na tabela de reembolsos (ainda não usada por
+-- nenhuma tela do app, mas a policy de insert só conferia quem pediu,
+-- nunca se o order_id pedido é realmente do próprio cliente).
+drop policy if exists "refunds_insert" on public.refunds;
+create policy "refunds_insert" on public.refunds
+  for insert with check (
+    public.is_master_admin()
+    or (
+      requested_by = auth.uid()
+      and order_id in (
+        select o.id from public.orders o
+        join public.customers c on c.id = o.customer_id
+        where c.profile_id = auth.uid()
+      )
+    )
+  );
+
+
+-- ─── 0040_opening_hours_shifts.sql ─────────────────────────────────────────────────────────
+
+-- Suporte a até 2 turnos por dia (ex.: almoço + jantar) no horário de
+-- funcionamento. Converte o formato antigo por dia:
+--   { "enabled": bool, "open": "HH:MM", "close": "HH:MM" }
+-- para o novo, com um array de turnos:
+--   { "enabled": bool, "shifts": [{ "open": "HH:MM", "close": "HH:MM" }] }
+-- Idempotente: só transforma dias que ainda estão no formato antigo
+-- (não têm a chave "shifts").
+update public.restaurant_settings
+set opening_hours = (
+  select coalesce(
+    jsonb_object_agg(
+      key,
+      case
+        when value ? 'shifts' then value
+        else jsonb_build_object(
+          'enabled', coalesce(value->'enabled', 'false'::jsonb),
+          'shifts', jsonb_build_array(
+            jsonb_build_object(
+              'open', coalesce(value->'open', '"00:00"'::jsonb),
+              'close', coalesce(value->'close', '"00:00"'::jsonb)
+            )
+          )
+        )
+      end
+    ),
+    '{}'::jsonb
+  )
+  from jsonb_each(opening_hours)
+)
+where opening_hours is not null and opening_hours != '{}'::jsonb;
+
+
+-- ─── 0041_multi_establishment_type.sql ─────────────────────────────────────────────────────────
+
+-- Restaurante pode ter, além do tipo principal (establishment_type), até
+-- mais 2 categorias adicionais (ex.: "Restaurante" + "Lanches" + "Italiana").
+alter table public.restaurants
+  add column if not exists additional_establishment_types text[] not null default '{}'::text[];
+
+do $$ begin
+  alter table public.restaurants
+    add constraint additional_establishment_types_max_2
+    check (array_length(additional_establishment_types, 1) is null or array_length(additional_establishment_types, 1) <= 2);
+exception when duplicate_object then null; end $$;
+
+comment on column public.restaurants.additional_establishment_types is
+  'Até 2 categorias extras além de establishment_type (o tipo principal).';
+
+
+-- ─── 0042_protect_restaurant_status.sql ─────────────────────────────────────────────────────────
+
+-- A policy "restaurants_update" (0008) permite que o dono do restaurante
+-- atualize qualquer coluna da própria linha, incluindo status/aprovação —
+-- ou seja, mesmo com a correção no server action (setRestaurantStatusAction
+-- agora exige master_admin), um dono tecnicamente poderia chamar a API do
+-- Supabase direto (fora da nossa tela) e se auto-aprovar ou reativar um
+-- restaurante bloqueado. Este trigger reverte essas colunas se quem
+-- alterou não for master_admin, independente de como o update chegou.
+create or replace function public.protect_restaurant_status_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_master_admin() then
+    -- status (pending/active/blocked) é 100% decisão do admin.
+    new.status := old.status;
+    new.approved_at := old.approved_at;
+
+    -- onboarding_status: o dono pode ir de draft -> in_review sozinho
+    -- (enviar pra análise), mas só o admin decide approved/rejected.
+    if new.onboarding_status in ('approved', 'rejected')
+       and old.onboarding_status is distinct from new.onboarding_status then
+      new.onboarding_status := old.onboarding_status;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_restaurant_status on public.restaurants;
+create trigger trg_protect_restaurant_status
+  before update of status, onboarding_status, approved_at on public.restaurants
+  for each row execute function public.protect_restaurant_status_columns();
+
+
+-- ─── 0043_rate_limiting.sql ─────────────────────────────────────────────────────────
+
+-- Rate limiting basico, sem depender de servico externo (Redis/Upstash):
+-- contador por janela de tempo direto no Postgres que ja temos. Suficiente
+-- pra frear scripts (login, cadastro, checkout de convidado, polling de
+-- status) sem adicionar mais uma peca de infraestrutura.
+create table if not exists public.rate_limit_hits (
+  key          text not null,
+  window_start timestamptz not null,
+  count        integer not null default 1,
+  primary key (key, window_start)
+);
+
+-- Limpeza incidental: linhas de janelas antigas nao servem mais pra nada.
+create index if not exists idx_rate_limit_hits_window on public.rate_limit_hits (window_start);
+
+create or replace function public.check_rate_limit(
+  p_key text,
+  p_max_count int,
+  p_window_seconds int
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_window_start timestamptz;
+  v_count int;
+begin
+  v_window_start := to_timestamp(floor(extract(epoch from now()) / p_window_seconds) * p_window_seconds);
+
+  insert into public.rate_limit_hits (key, window_start, count)
+  values (p_key, v_window_start, 1)
+  on conflict (key, window_start)
+    do update set count = rate_limit_hits.count + 1
+  returning count into v_count;
+
+  -- limpeza oportunista de janelas velhas (evita crescer pra sempre)
+  delete from public.rate_limit_hits where window_start < now() - interval '1 day';
+
+  return v_count <= p_max_count;
+end;
+$$;
+
+grant execute on function public.check_rate_limit(text, int, int) to authenticated, anon;
+
+alter table public.rate_limit_hits enable row level security;
+-- Ninguem le/escreve essa tabela diretamente — so via a funcao security definer acima.
 
 
 -- ─── seed.sql ───────────────────────────────────────────────────────────
