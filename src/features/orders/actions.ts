@@ -9,6 +9,7 @@ import { canTransition } from "@/core/domain/value-objects/order-status";
 import { notifyOrderStatusChange } from "@/features/notifications/lib";
 import { ensureDeliveryCode } from "@/features/delivery/queries";
 import { upsertGuestCustomer, saveGuestAddress } from "@/features/customers/guest";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   createAsaasOrder,
   isAsaasConfigured,
@@ -111,6 +112,11 @@ export async function createOrderAction(
     }
     if (!data.guestEmail?.trim()) {
       return { ok: false, error: "Informe seu e-mail para acompanhar o pedido." };
+    }
+    const ip = await getClientIp();
+    const allowed = await checkRateLimit(`guest-order:${ip}`, 15, 3600);
+    if (!allowed) {
+      return { ok: false, error: "Muitos pedidos a partir daqui. Tente novamente mais tarde ou faça login." };
     }
   }
 

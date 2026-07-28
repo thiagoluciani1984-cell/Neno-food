@@ -9,7 +9,10 @@ import type { AsaasWebhookPayload } from "@/lib/payments";
 
 function verifyWebhookAuth(req: NextRequest): boolean {
   const token = process.env.ASAAS_WEBHOOK_TOKEN;
-  if (!token) return true;
+  // Fail-closed: sem token configurado, nenhum webhook é aceito — evita que
+  // uma remoção acidental da variável de ambiente destrave a rota pra
+  // qualquer um forjar eventos de pagamento.
+  if (!token) return false;
 
   return req.headers.get("asaas-access-token") === token;
 }

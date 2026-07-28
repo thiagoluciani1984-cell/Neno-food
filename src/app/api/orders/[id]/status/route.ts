@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderStatusForTracking } from "@/features/orders/queries";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * Reforço de polling pro acompanhamento do pedido — cobre o caso do
@@ -10,6 +11,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = await getClientIp();
+  const allowed = await checkRateLimit(`order-status:${ip}`, 120, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "too many requests" }, { status: 429 });
+  }
+
   const { id } = await params;
   const token = req.nextUrl.searchParams.get("token") ?? undefined;
 

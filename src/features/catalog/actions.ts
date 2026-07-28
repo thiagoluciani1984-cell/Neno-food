@@ -13,6 +13,9 @@ import {
 
 type Result = { ok: boolean; error?: string; id?: string };
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 // ─── Categorias ───────────────────────────────────────────────────────
 export async function saveCategoryAction(input: CategoryInput): Promise<Result> {
   const parsed = categorySchema.safeParse(input);
@@ -127,17 +130,23 @@ export async function uploadProductImageAction(
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "Arquivo inválido." };
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { ok: false, error: "Tipo de arquivo inválido. Use PNG, JPG, GIF ou WEBP." };
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return { ok: false, error: "Arquivo muito grande. Máximo 5 MB." };
+  }
 
   const restaurantId = await getActiveRestaurantId();
   if (!restaurantId) return { ok: false, error: "Restaurante não identificado." };
 
   const supabase = await createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const path = `${restaurantId}/${crypto.randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage
     .from("product-images")
-    .upload(path, file, { cacheControl: "3600", upsert: false });
+    .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
 
   if (error) return { ok: false, error: error.message };
 

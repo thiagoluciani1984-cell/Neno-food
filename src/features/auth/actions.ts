@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/infra/supabase/server";
 import { siteConfig } from "@/config/site";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   loginSchema,
   signupSchema,
@@ -23,6 +24,12 @@ export async function loginAction(
   });
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const ip = await getClientIp();
+  const allowed = await checkRateLimit(`login:${ip}`, 15, 300);
+  if (!allowed) {
+    return { error: "Muitas tentativas. Aguarde alguns minutos e tente de novo." };
   }
 
   const supabase = await createClient();
@@ -69,6 +76,12 @@ export async function signupAction(
   });
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const ip = await getClientIp();
+  const allowed = await checkRateLimit(`signup:${ip}`, 8, 3600);
+  if (!allowed) {
+    return { error: "Muitos cadastros a partir daqui. Tente novamente mais tarde." };
   }
 
   const supabase = await createClient();

@@ -5,14 +5,16 @@ import { createClient } from "@/infra/supabase/server";
 import { getSession } from "@/features/auth/get-session";
 import type { RestaurantStatus } from "@/types/database.types";
 
-/**
- * Master admin: altera o status de um restaurante (aprovar/bloquear).
- * RLS garante que apenas master_admin consegue executar o update global.
- */
+/** Master admin: altera o status de um restaurante (aprovar/bloquear). */
 export async function setRestaurantStatusAction(
   restaurantId: string,
   status: RestaurantStatus
 ): Promise<{ ok: boolean; error?: string }> {
+  const { profile } = await getSession();
+  if (profile?.role !== "master_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
   const supabase = await createClient();
 
   const update: Record<string, unknown> = { status };
