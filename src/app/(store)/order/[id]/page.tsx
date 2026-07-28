@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { OrderTracker } from "@/features/orders/components/order-tracker";
+import { GuestSaveLinkBanner } from "@/features/orders/components/guest-save-link-banner";
 import { OrderActiveBanner } from "@/features/orders/components/order-active-banner";
 import { OrderPaymentBanner } from "@/features/orders/components/order-payment-banner";
 import { DeliveryPinCard } from "@/features/orders/components/delivery-pin-card";
@@ -21,6 +22,7 @@ import { formatAddressForMaps } from "@/features/delivery/maps";
 import { DeliveryTrackingCard } from "@/features/delivery/components/delivery-tracking-card";
 import { DriverInfoCard } from "@/features/delivery/components/driver-info-card";
 import { getOrderForTracking } from "@/features/orders/queries";
+import { getSession } from "@/features/auth/get-session";
 import { formatBRL } from "@/lib/money";
 import { ORDER_STATUS_LABEL } from "@/core/domain/value-objects/order-status";
 import type { OrderWithItems, Restaurant } from "@/types/database.types";
@@ -41,8 +43,13 @@ export default async function OrderPage({
   const { id } = await params;
   const { token } = await searchParams;
 
-  const order = await getOrderForTracking(id, token);
+  const [order, { user }] = await Promise.all([
+    getOrderForTracking(id, token),
+    getSession(),
+  ]);
   if (!order) notFound();
+
+  const isGuestView = !user && !!token;
 
   const deliveryCode =
     order.status === "out_for_delivery" || order.status === "delivered"
@@ -73,6 +80,8 @@ export default async function OrderPage({
           Acompanhe seu pedido em tempo real
         </p>
       </div>
+
+      {isGuestView && <GuestSaveLinkBanner />}
 
       <OrderActiveBanner
         orderNumber={String(order.order_number)}
@@ -109,6 +118,7 @@ export default async function OrderPage({
         createdAt={order.created_at}
         initialConfirmedAt={order.confirmed_at}
         prepMinutes={order.prep_minutes}
+        guestToken={token}
       />
 
       <Card>

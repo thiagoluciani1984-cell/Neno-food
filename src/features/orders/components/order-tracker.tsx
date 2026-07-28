@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -40,6 +40,7 @@ export function OrderTracker({
   createdAt,
   initialConfirmedAt,
   prepMinutes,
+  guestToken,
 }: {
   orderId: string;
   initialStatus: OrderStatus;
@@ -47,10 +48,15 @@ export function OrderTracker({
   createdAt: string;
   initialConfirmedAt: string | null;
   prepMinutes: number;
+  guestToken?: string;
 }) {
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
   const [confirmedAt, setConfirmedAt] = useState<string | null>(initialConfirmedAt);
   const trackSteps = orderType === "pickup" ? PICKUP_STEPS : DELIVERY_STEPS;
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -83,6 +89,40 @@ export function OrderTracker({
       if (channel) supabase.removeChannel(channel);
     };
   }, [orderId]);
+
+  // Reforço por polling: cobre o caso do cliente convidado (Realtime não
+  // funciona pra ele, já que a autorização depende de token, não de login)
+  // e serve de rede de segurança caso o Realtime falhe silenciosamente por
+  // qualquer outro motivo.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function poll() {
+      if (statusRef.current === "delivered" || statusRef.current === "cancelled") {
+        window.clearInterval(interval);
+        return;
+      }
+      try {
+        const url = guestToken
+          ? `/api/orders/${orderId}/status?token=${encodeURIComponent(guestToken)}`
+          : `/api/orders/${orderId}/status`;
+        const res = await fetch(url);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setStatus(data.status);
+        setConfirmedAt(data.confirmed_at);
+      } catch {
+        // ignora falhas de rede pontuais — próxima tentativa corrige
+      }
+    }
+
+    const interval = window.setInterval(poll, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [orderId, guestToken]);
 
   if (status === "cancelled") {
     return (

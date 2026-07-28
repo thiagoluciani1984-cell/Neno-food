@@ -61,3 +61,30 @@ export async function getOrderForTracking(
 
   return guestOrder;
 }
+
+/** Versão enxuta de getOrderForTracking, usada pelo polling de status (reforço do Realtime). */
+export async function getOrderStatusForTracking(
+  orderId: string,
+  guestToken?: string
+): Promise<{ status: string; confirmed_at: string | null } | null> {
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("status, confirmed_at")
+    .eq("id", orderId)
+    .maybeSingle<{ status: string; confirmed_at: string | null }>();
+
+  if (order) return order;
+
+  if (!guestToken) return null;
+
+  const admin = createAdminClient();
+  const { data: guestOrder } = await admin
+    .from("orders")
+    .select("status, confirmed_at")
+    .eq("id", orderId)
+    .eq("guest_access_token", guestToken)
+    .maybeSingle<{ status: string; confirmed_at: string | null }>();
+
+  return guestOrder;
+}
