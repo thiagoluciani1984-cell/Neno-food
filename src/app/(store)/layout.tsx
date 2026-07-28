@@ -4,15 +4,20 @@ import { StoreHeaderShell } from "@/features/catalog/components/store-header-she
 import { StoreBottomNav } from "@/components/shared/store-bottom-nav";
 import { StorePageMotion } from "@/components/shared/store-page-motion";
 import { Logo } from "@/components/shared/logo";
+import { SignupPromoModal } from "@/components/shared/signup-promo-modal";
 import { siteConfig } from "@/config/site";
+import { getSession } from "@/features/auth/get-session";
 
-export default function StoreLayout({
+export default async function StoreLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = await getSession();
+
   return (
     <div className="flex min-h-screen flex-col bg-[#FFF9F2]">
+      <SignupPromoModal isLoggedIn={!!user} />
       <StoreHeaderShell />
 
       <main className="flex-1 pb-24 md:pb-0">
