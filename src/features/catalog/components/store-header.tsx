@@ -14,10 +14,12 @@ import { useMounted } from "@/lib/use-mounted";
 import type { Notification } from "@/types/database.types";
 
 export function StoreHeader({
+  isLoggedIn = false,
   showNotifications = false,
   notifications = [],
   unreadCount = 0,
 }: {
+  isLoggedIn?: boolean;
   showNotifications?: boolean;
   notifications?: Notification[];
   unreadCount?: number;
@@ -94,16 +96,36 @@ export function StoreHeader({
             </Button>
           )}
 
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="hidden rounded-full text-muted-foreground hover:bg-orange-50 hover:text-primary sm:inline-flex"
-          >
-            <Link href="/account" aria-label="Minha conta">
-              <User className="h-5 w-5" />
-            </Link>
-          </Button>
+          {isLoggedIn ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="hidden rounded-full text-muted-foreground hover:bg-orange-50 hover:text-primary sm:inline-flex"
+            >
+              <Link href="/account" aria-label="Minha conta">
+                <User className="h-5 w-5" />
+              </Link>
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="rounded-full px-3 text-sm font-bold text-[#4d443e] hover:bg-orange-50 hover:text-primary"
+              >
+                <Link href="/login">Entrar</Link>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                className="hidden rounded-full bg-primary px-4 font-bold text-white shadow-md shadow-primary/25 hover:bg-primary/90 sm:inline-flex"
+              >
+                <Link href="/signup/customer">Cadastre-se</Link>
+              </Button>
+            </div>
+          )}
 
           <Button
             asChild

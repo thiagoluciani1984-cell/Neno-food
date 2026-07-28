@@ -9,7 +9,7 @@ export async function StoreHeaderShell() {
   const { user } = await getSession();
 
   if (!user) {
-    return <StoreHeader />;
+    return <StoreHeader isLoggedIn={false} />;
   }
 
   const [notifications, unreadCount] = await Promise.all([
@@ -19,6 +19,7 @@ export async function StoreHeaderShell() {
 
   return (
     <StoreHeader
+      isLoggedIn
       showNotifications
       notifications={notifications}
       unreadCount={unreadCount}
