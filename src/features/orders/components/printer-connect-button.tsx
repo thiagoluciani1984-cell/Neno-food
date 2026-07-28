@@ -13,11 +13,18 @@ import {
 import { ReceiptBuilder } from "@/lib/printer/escpos";
 
 export function PrinterConnectButton() {
-  const [supported] = useState(() => isWebSerialSupported());
+  // Começa "true" (mesmo valor no servidor e no primeiro render do
+  // cliente, evitando erro de hidratação) — a checagem real de suporte
+  // só é possível no navegador, então é corrigida logo depois via efeito.
+  const [supported, setSupported] = useState(true);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
+    // Suporte a Web Serial só é detectável no navegador; setar aqui (e não
+    // na inicialização do useState) é o que evita o mismatch de hidratação.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSupported(isWebSerialSupported());
     void hasPairedPrinter().then(setConnected);
   }, []);
 
