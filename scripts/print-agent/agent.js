@@ -65,7 +65,7 @@ function printRaw(bytes) {
   return new Promise((resolve, reject) => {
     const tempFile = path.join(os.tmpdir(), `nenos-print-${Date.now()}.prn`);
     fs.writeFileSync(tempFile, bytes);
-    const target = `\\\\localhost\\${env.PRINTER_SHARE_NAME}`;
+    const target = `\\\\${os.hostname()}\\${env.PRINTER_SHARE_NAME}`;
     execFile("cmd.exe", ["/c", "copy", "/b", tempFile, target], (error, stdout, stderr) => {
       fs.unlink(tempFile, () => {});
       if (error) {
