@@ -1,10 +1,15 @@
 import { z } from "zod";
 import { ESTABLISHMENT_TYPES } from "@/core/domain/value-objects/establishment-type";
 
-const daySchema = z.object({
-  enabled: z.boolean(),
+const shiftSchema = z.object({
   open: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
   close: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
+});
+
+const daySchema = z.object({
+  enabled: z.boolean(),
+  // 1 turno (só um período) ou 2 (ex.: almoço + jantar)
+  shifts: z.array(shiftSchema).min(1).max(2),
 });
 
 export const settingsSchema = z.object({
@@ -69,11 +74,11 @@ export const DAYS_LABELS: Record<string, string> = {
 export const DAY_KEYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"] as const;
 
 export const DEFAULT_HOURS = {
-  dom: { enabled: false, open: "11:00", close: "22:00" },
-  seg: { enabled: true, open: "11:00", close: "22:00" },
-  ter: { enabled: true, open: "11:00", close: "22:00" },
-  qua: { enabled: true, open: "11:00", close: "22:00" },
-  qui: { enabled: true, open: "11:00", close: "22:00" },
-  sex: { enabled: true, open: "11:00", close: "23:00" },
-  sab: { enabled: true, open: "11:00", close: "23:00" },
+  dom: { enabled: false, shifts: [{ open: "11:00", close: "22:00" }] },
+  seg: { enabled: true, shifts: [{ open: "11:00", close: "22:00" }] },
+  ter: { enabled: true, shifts: [{ open: "11:00", close: "22:00" }] },
+  qua: { enabled: true, shifts: [{ open: "11:00", close: "22:00" }] },
+  qui: { enabled: true, shifts: [{ open: "11:00", close: "22:00" }] },
+  sex: { enabled: true, shifts: [{ open: "11:00", close: "23:00" }] },
+  sab: { enabled: true, shifts: [{ open: "11:00", close: "23:00" }] },
 };

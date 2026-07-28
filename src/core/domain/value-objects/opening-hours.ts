@@ -1,7 +1,11 @@
-export interface DaySchedule {
-  enabled: boolean;
+export interface Shift {
   open: string; // "HH:MM"
   close: string; // "HH:MM"
+}
+
+export interface DaySchedule {
+  enabled: boolean;
+  shifts: Shift[]; // 1 turno (ex.: só jantar) ou 2 (ex.: almoço + jantar)
 }
 
 export type OpeningHours = Record<string, DaySchedule>;
@@ -38,10 +42,24 @@ function dayBefore(dayKey: string): string {
   return DAY_KEYS_BY_INDEX[(idx + 6) % 7];
 }
 
+function isOvernight(shift: Shift): boolean {
+  return shift.close <= shift.open;
+}
+
+/** hhmm ainda está dentro de um turno de ONTEM que atravessou a meia-noite. */
+function isWithinYesterdayOvernightShift(shift: Shift, hhmm: string): boolean {
+  return isOvernight(shift) && hhmm < shift.close;
+}
+
 /**
- * O restaurante está marcado como aberto, mas já passou do horário de
- * fechamento configurado? Considera também o expediente do dia anterior
- * quando ele atravessa a meia-noite (ex.: abre 18:00, fecha 01:00).
+ * O restaurante está marcado como aberto, mas já passou do fim do ÚLTIMO
+ * turno configurado pra hoje? Um intervalo entre dois turnos do mesmo dia
+ * (ex.: fechou o almoço às 15h, abre o jantar às 18h) NÃO conta como
+ * "fechamento" — só fecha de fato depois que não sobra mais nenhum turno
+ * pela frente hoje (nem um turno de ontem que atravessou a meia-noite e
+ * ainda está rolando). Isso evita ter que reabrir sozinho a cada turno:
+ * uma vez aberto, só fecha quando o dia realmente termina ou não há
+ * expediente configurado.
  */
 export function isPastClosingTime(openingHours: OpeningHours, now: Date = new Date()): boolean {
   const { dayKey, hhmm } = getLocalDayAndTime(now);
@@ -49,26 +67,28 @@ export function isPastClosingTime(openingHours: OpeningHours, now: Date = new Da
   const yesterdayKey = dayBefore(dayKey);
   const yesterday = openingHours[yesterdayKey];
   const today = openingHours[dayKey];
-  const yesterdayWasOvernight = !!yesterday?.enabled && yesterday.close <= yesterday.open;
 
-  if (yesterdayWasOvernight && hhmm < yesterday.close) {
-    // Expediente de ontem atravessou a meia-noite e ainda está rolando.
+  const yesterdayShifts = yesterday?.enabled ? (yesterday.shifts ?? []) : [];
+  const todayShifts = today?.enabled ? (today.shifts ?? []) : [];
+  const yesterdayOvernightShifts = yesterdayShifts.filter(isOvernight);
+
+  // Ainda dentro de um turno de ontem que atravessou a meia-noite?
+  if (yesterdayOvernightShifts.some((s) => isWithinYesterdayOvernightShift(s, hhmm))) {
     return false;
   }
 
-  if (yesterdayWasOvernight && (!today?.enabled || hhmm < today.open)) {
-    // Expediente de ontem (que atravessou a meia-noite) já fechou, e
-    // hoje ainda não abriu (ou não tem expediente hoje).
-    return true;
+  if (todayShifts.length === 0) {
+    // Sem expediente hoje: só fecha se vinha de um turno de ontem que
+    // atravessa a meia-noite (já confirmado acima que ele já terminou).
+    return yesterdayOvernightShifts.length > 0;
   }
 
-  if (!today?.enabled) return false;
+  // Ainda sobra algum turno hoje? Um turno que atravessa a meia-noite
+  // conta como "ainda pela frente" mesmo antes de começar — ele só vira
+  // "passado" quando checado no dia seguinte (ramo acima).
+  const stillHasShiftAheadToday = todayShifts.some(
+    (s) => isOvernight(s) || hhmm < s.close
+  );
 
-  if (today.close <= today.open) {
-    // Expediente de hoje atravessa a meia-noite: só "fechado" na madrugada
-    // seguinte (tratado no dia seguinte via checagem de "ontem" acima).
-    return false;
-  }
-
-  return hhmm >= today.close;
+  return !stillHasShiftAheadToday;
 }

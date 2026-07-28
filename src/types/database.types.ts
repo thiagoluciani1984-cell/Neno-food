@@ -127,7 +127,7 @@ export interface RestaurantSettings {
   min_order_cents: number;
   delivery_radius_km: number;
   avg_prep_minutes: number;
-  opening_hours: Record<string, { open: string; close: string; enabled: boolean }>;
+  opening_hours: Record<string, { enabled: boolean; shifts: { open: string; close: string }[] }>;
   payment_methods: PaymentMethod[];
   asaas_wallet_id: string | null;
   platform_fee_percent: number | null;

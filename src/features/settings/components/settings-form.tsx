@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Save, Power, Loader2 } from "lucide-react";
+import { Save, Power, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -97,18 +97,56 @@ export function SettingsForm({
     }
   }
 
-  function setHour(
-    day: keyof SettingsInput["opening_hours"],
-    field: "enabled" | "open" | "close",
-    value: boolean | string
-  ) {
+  function setDayEnabled(day: keyof SettingsInput["opening_hours"], enabled: boolean) {
     setForm((prev) => ({
       ...prev,
       opening_hours: {
         ...prev.opening_hours,
-        [day]: { ...prev.opening_hours[day], [field]: value },
+        [day]: { ...prev.opening_hours[day], enabled },
       },
     }));
+  }
+
+  function setShiftField(
+    day: keyof SettingsInput["opening_hours"],
+    shiftIndex: number,
+    field: "open" | "close",
+    value: string
+  ) {
+    setForm((prev) => {
+      const daySchedule = prev.opening_hours[day];
+      const shifts = daySchedule.shifts.map((s, i) =>
+        i === shiftIndex ? { ...s, [field]: value } : s
+      );
+      return {
+        ...prev,
+        opening_hours: { ...prev.opening_hours, [day]: { ...daySchedule, shifts } },
+      };
+    });
+  }
+
+  function addShift(day: keyof SettingsInput["opening_hours"]) {
+    setForm((prev) => {
+      const daySchedule = prev.opening_hours[day];
+      if (daySchedule.shifts.length >= 2) return prev;
+      const shifts = [...daySchedule.shifts, { open: "18:00", close: "23:00" }];
+      return {
+        ...prev,
+        opening_hours: { ...prev.opening_hours, [day]: { ...daySchedule, shifts } },
+      };
+    });
+  }
+
+  function removeShift(day: keyof SettingsInput["opening_hours"], shiftIndex: number) {
+    setForm((prev) => {
+      const daySchedule = prev.opening_hours[day];
+      if (daySchedule.shifts.length <= 1) return prev;
+      const shifts = daySchedule.shifts.filter((_, i) => i !== shiftIndex);
+      return {
+        ...prev,
+        opening_hours: { ...prev.opening_hours, [day]: { ...daySchedule, shifts } },
+      };
+    });
   }
 
   async function handleToggleOpen() {
@@ -417,45 +455,74 @@ export function SettingsForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Dá pra configurar até 2 horários por dia — útil pra quem abre pro almoço,
+            fecha à tarde e reabre à noite.
+          </p>
           {DAY_KEYS.map((day) => {
             const h = form.opening_hours[day];
             return (
-              <div
-                key={day}
-                className="flex flex-wrap items-center gap-3 rounded-lg border p-3"
-              >
-                <div className="flex w-36 items-center gap-2">
-                  <Switch
-                    id={`day-${day}`}
-                    checked={h.enabled}
-                    onCheckedChange={(v) => setHour(day, "enabled", v)}
-                  />
-                  <Label
-                    htmlFor={`day-${day}`}
-                    className={`text-sm font-medium ${h.enabled ? "text-foreground" : "text-muted-foreground"}`}
-                  >
-                    {DAYS_LABELS[day]}
-                  </Label>
+              <div key={day} className="space-y-2 rounded-lg border p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex w-36 items-center gap-2">
+                    <Switch
+                      id={`day-${day}`}
+                      checked={h.enabled}
+                      onCheckedChange={(v) => setDayEnabled(day, v)}
+                    />
+                    <Label
+                      htmlFor={`day-${day}`}
+                      className={`text-sm font-medium ${h.enabled ? "text-foreground" : "text-muted-foreground"}`}
+                    >
+                      {DAYS_LABELS[day]}
+                    </Label>
+                  </div>
+
+                  {!h.enabled && (
+                    <span className="text-xs text-muted-foreground">Fechado</span>
+                  )}
                 </div>
 
-                {h.enabled ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      value={h.open}
-                      onChange={(e) => setHour(day, "open", e.target.value)}
-                      className="h-8 w-28 text-sm"
-                    />
-                    <span className="text-xs text-muted-foreground">até</span>
-                    <Input
-                      type="time"
-                      value={h.close}
-                      onChange={(e) => setHour(day, "close", e.target.value)}
-                      className="h-8 w-28 text-sm"
-                    />
+                {h.enabled && (
+                  <div className="space-y-2 pl-0 sm:pl-[9.5rem]">
+                    {h.shifts.map((shift, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={shift.open}
+                          onChange={(e) => setShiftField(day, i, "open", e.target.value)}
+                          className="h-8 w-28 text-sm"
+                        />
+                        <span className="text-xs text-muted-foreground">até</span>
+                        <Input
+                          type="time"
+                          value={shift.close}
+                          onChange={(e) => setShiftField(day, i, "close", e.target.value)}
+                          className="h-8 w-28 text-sm"
+                        />
+                        {h.shifts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeShift(day, i)}
+                            aria-label="Remover horário"
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {h.shifts.length < 2 && (
+                      <button
+                        type="button"
+                        onClick={() => addShift(day)}
+                        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Adicionar segundo horário (ex.: jantar)
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Fechado</span>
                 )}
               </div>
             );
