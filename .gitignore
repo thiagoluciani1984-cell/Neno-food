@@ -41,3 +41,5 @@ src/types/database.types.generated.ts
 supabase/.branches
 supabase/.temp
 .env*
+!.env.example
+!**/.env.example
