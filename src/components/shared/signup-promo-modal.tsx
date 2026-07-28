@@ -23,26 +23,39 @@ const DISMISS_DAYS = 3;
  */
 const BLOCKED_PATH_PREFIXES = ["/checkout", "/cart", "/order", "/payment", "/account"];
 
+function isBlockedPathname(pathname: string): boolean {
+  return BLOCKED_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export function SignupPromoModal({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname();
-  const isBlockedPath = BLOCKED_PATH_PREFIXES.some(
-    (p) => pathname === p || pathname.includes(p)
-  );
+  const isBlockedPath = isBlockedPathname(pathname);
 
   // Lido uma vez, na montagem — no servidor (sem window) fica "dispensado"
-  // por padrão, então não aparece piscando antes da hidratação.
+  // por padrão, então não aparece piscando antes da hidratação. Em
+  // navegadores que bloqueiam storage (Safari com cookies bloqueados,
+  // modos de privacidade restritos), getItem pode lançar — nesse caso
+  // também trata como "dispensado" em vez de quebrar a página inteira.
   const [dismissedByStorage] = useState(() => {
     if (typeof window === "undefined") return true;
-    const dismissedUntil = Number(window.localStorage.getItem(DISMISS_KEY) ?? 0);
-    return Date.now() < dismissedUntil;
+    try {
+      const dismissedUntil = Number(window.localStorage.getItem(DISMISS_KEY) ?? 0);
+      return Date.now() < dismissedUntil;
+    } catch {
+      return true;
+    }
   });
   const [manuallyDismissed, setManuallyDismissed] = useState(false);
 
   const open = !isLoggedIn && !isBlockedPath && !dismissedByStorage && !manuallyDismissed;
 
   function dismiss() {
-    const until = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(DISMISS_KEY, String(until));
+    try {
+      const until = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000;
+      window.localStorage.setItem(DISMISS_KEY, String(until));
+    } catch {
+      // storage bloqueado — sem problema, só não vai lembrar a dispensa
+    }
     setManuallyDismissed(true);
   }
 

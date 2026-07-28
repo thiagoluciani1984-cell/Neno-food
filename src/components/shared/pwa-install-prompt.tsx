@@ -30,7 +30,11 @@ export function PwaInstallPrompt() {
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") return true;
     if (isStandalone()) return true;
-    return window.localStorage.getItem(DISMISS_KEY) === "1";
+    try {
+      return window.localStorage.getItem(DISMISS_KEY) === "1";
+    } catch {
+      return true;
+    }
   });
 
   useEffect(() => {
@@ -51,7 +55,11 @@ export function PwaInstallPrompt() {
   }, [dismissed, showIosHint]);
 
   function dismiss() {
-    window.localStorage.setItem(DISMISS_KEY, "1");
+    try {
+      window.localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // storage bloqueado — sem problema, só não vai lembrar a dispensa
+    }
     setDismissed(true);
   }
 

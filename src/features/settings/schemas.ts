@@ -6,59 +6,82 @@ const shiftSchema = z.object({
   close: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
 });
 
-const daySchema = z.object({
-  enabled: z.boolean(),
-  // 1 turno (só um período) ou 2 (ex.: almoço + jantar)
-  shifts: z.array(shiftSchema).min(1).max(2),
-});
+const daySchema = z
+  .object({
+    enabled: z.boolean(),
+    // 1 turno (só um período) ou 2 (ex.: almoço + jantar)
+    shifts: z.array(shiftSchema).min(1).max(2),
+  })
+  .refine(
+    (day) => {
+      if (day.shifts.length < 2) return true;
+      const [a, b] = day.shifts;
+      // Só valida sobreposição entre turnos "normais" (mesmo dia, sem
+      // atravessar meia-noite) — combinações com turno noturno são caso
+      // raro e já suportadas corretamente na lógica de fechamento.
+      const aOvernight = a.close <= a.open;
+      const bOvernight = b.close <= b.open;
+      if (aOvernight || bOvernight) return true;
+      return !(a.open < b.close && b.open < a.close);
+    },
+    { message: "Os dois horários não podem se sobrepor", path: ["shifts"] }
+  );
 
-export const settingsSchema = z.object({
-  // Categoria
-  establishment_type: z.enum(ESTABLISHMENT_TYPES),
-  additional_establishment_types: z.array(z.enum(ESTABLISHMENT_TYPES)).max(2),
-  cuisine: z.string().min(2, "Informe o tipo de culinária").max(80),
+export const settingsSchema = z
+  .object({
+    // Categoria
+    establishment_type: z.enum(ESTABLISHMENT_TYPES),
+    additional_establishment_types: z.array(z.enum(ESTABLISHMENT_TYPES)).max(2),
+    cuisine: z.string().min(2, "Informe o tipo de culinária").max(80),
 
-  // Operação
-  is_open: z.boolean(),
-  auto_accept_orders: z.boolean(),
-  accepts_delivery: z.boolean(),
-  accepts_pickup: z.boolean(),
-  accepts_dine_in: z.boolean(),
+    // Operação
+    is_open: z.boolean(),
+    auto_accept_orders: z.boolean(),
+    accepts_delivery: z.boolean(),
+    accepts_pickup: z.boolean(),
+    accepts_dine_in: z.boolean(),
 
-  // Delivery
-  delivery_fee_cents: z.number().int().min(0),
-  free_delivery_above_cents: z.number().int().min(0).nullable(),
-  min_order_cents: z.number().int().min(0),
-  delivery_radius_km: z.number().min(0).max(100),
-  avg_prep_minutes: z.number().int().min(1).max(180),
+    // Delivery
+    delivery_fee_cents: z.number().int().min(0),
+    free_delivery_above_cents: z.number().int().min(0).nullable(),
+    min_order_cents: z.number().int().min(0),
+    delivery_radius_km: z.number().min(0).max(100),
+    avg_prep_minutes: z.number().int().min(1).max(180),
 
-  // Pagamentos
-  payment_methods: z
-    .array(z.enum(["pix", "cash", "card", "online"]))
-    .min(1, "Selecione pelo menos uma forma de pagamento"),
+    // Pagamentos
+    payment_methods: z
+      .array(z.enum(["pix", "cash", "card", "online"]))
+      .min(1, "Selecione pelo menos uma forma de pagamento"),
 
-  // Horários
-  opening_hours: z.object({
-    dom: daySchema,
-    seg: daySchema,
-    ter: daySchema,
-    qua: daySchema,
-    qui: daySchema,
-    sex: daySchema,
-    sab: daySchema,
-  }),
+    // Horários
+    opening_hours: z.object({
+      dom: daySchema,
+      seg: daySchema,
+      ter: daySchema,
+      qua: daySchema,
+      qui: daySchema,
+      sex: daySchema,
+      sab: daySchema,
+    }),
 
-  // Endereço
-  address_street: z.string().min(2, "Informe a rua").nullable(),
-  address_number: z.string().min(1, "Informe o número").nullable(),
-  address_district: z.string().min(2, "Informe o bairro").nullable(),
-  address_city: z.string().min(2, "Informe a cidade").nullable(),
-  address_state: z.string().length(2, "Use a sigla do estado (ex: SP)").nullable(),
-  address_zip: z.string().min(8, "Informe o CEP").nullable(),
+    // Endereço
+    address_street: z.string().min(2, "Informe a rua").nullable(),
+    address_number: z.string().min(1, "Informe o número").nullable(),
+    address_district: z.string().min(2, "Informe o bairro").nullable(),
+    address_city: z.string().min(2, "Informe a cidade").nullable(),
+    address_state: z.string().length(2, "Use a sigla do estado (ex: SP)").nullable(),
+    address_zip: z.string().min(8, "Informe o CEP").nullable(),
 
-  // Asaas split (opcional)
-  asaas_wallet_id: z.string().nullable().optional(),
-});
+    // Asaas split (opcional)
+    asaas_wallet_id: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => !data.additional_establishment_types.includes(data.establishment_type),
+    {
+      message: "A categoria principal não pode se repetir nas adicionais",
+      path: ["additional_establishment_types"],
+    }
+  );
 
 export type SettingsInput = z.infer<typeof settingsSchema>;
 
