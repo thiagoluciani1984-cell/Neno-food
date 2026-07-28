@@ -13,6 +13,37 @@ let openPromise: Promise<void> | null = null;
 // abrir a porta ou pegar o writer ao mesmo tempo (Web Serial não permite).
 let printQueue: Promise<unknown> = Promise.resolve();
 
+const BAUD_RATE_KEY = "nenos:printer-baud-rate";
+const DEFAULT_BAUD_RATE = 9600;
+export const COMMON_BAUD_RATES = [9600, 19200, 38400, 57600, 115200] as const;
+
+export function getBaudRate(): number {
+  if (typeof window === "undefined") return DEFAULT_BAUD_RATE;
+  try {
+    const stored = Number(window.localStorage.getItem(BAUD_RATE_KEY));
+    return stored > 0 ? stored : DEFAULT_BAUD_RATE;
+  } catch {
+    return DEFAULT_BAUD_RATE;
+  }
+}
+
+/** Muda a velocidade e fecha a porta aberta (se houver) pra reabrir com o novo valor no próximo print. */
+export async function setBaudRate(rate: number): Promise<void> {
+  try {
+    window.localStorage.setItem(BAUD_RATE_KEY, String(rate));
+  } catch {
+    // storage bloqueado — a escolha só não persiste entre sessões
+  }
+  if (cachedPort && (cachedPort.readable || cachedPort.writable)) {
+    try {
+      await cachedPort.close();
+    } catch {
+      // ignora — porta pode já estar num estado inconsistente
+    }
+  }
+  openPromise = null;
+}
+
 export function isWebSerialSupported(): boolean {
   return typeof navigator !== "undefined" && !!navigator.serial;
 }
@@ -58,7 +89,7 @@ async function printBytesInternal(
 
   try {
     if (!port.readable && !port.writable) {
-      if (!openPromise) openPromise = port.open({ baudRate: 9600 });
+      if (!openPromise) openPromise = port.open({ baudRate: getBaudRate() });
       await openPromise;
     }
     const writer = port.writable?.getWriter();

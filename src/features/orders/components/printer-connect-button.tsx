@@ -9,6 +9,9 @@ import {
   requestPrinterPort,
   hasPairedPrinter,
   printBytes,
+  getBaudRate,
+  setBaudRate,
+  COMMON_BAUD_RATES,
 } from "@/lib/printer/serial-printer";
 import { ReceiptBuilder } from "@/lib/printer/escpos";
 
@@ -19,14 +22,22 @@ export function PrinterConnectButton() {
   const [supported, setSupported] = useState(true);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [baudRate, setBaudRateState] = useState(9600);
 
   useEffect(() => {
     // Suporte a Web Serial só é detectável no navegador; setar aqui (e não
     // na inicialização do useState) é o que evita o mismatch de hidratação.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(isWebSerialSupported());
+    setBaudRateState(getBaudRate());
     void hasPairedPrinter().then(setConnected);
   }, []);
+
+  async function handleBaudRateChange(rate: number) {
+    setBaudRateState(rate);
+    await setBaudRate(rate);
+    toast.info(`Velocidade da porta ajustada para ${rate}. Clique em "testar" de novo.`);
+  }
 
   async function handleConnect() {
     setConnecting(true);
@@ -65,10 +76,24 @@ export function PrinterConnectButton() {
 
   if (connected) {
     return (
-      <Button variant="outline" size="sm" onClick={handleTestPrint}>
-        <PrinterCheck className="mr-2 h-4 w-4 text-green-600" />
-        Impressora conectada — testar
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleTestPrint}>
+          <PrinterCheck className="mr-2 h-4 w-4 text-green-600" />
+          Impressora conectada — testar
+        </Button>
+        <select
+          value={baudRate}
+          onChange={(e) => handleBaudRateChange(Number(e.target.value))}
+          title="Velocidade da porta (baud rate) — troque se o teste não sair no papel"
+          className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+        >
+          {COMMON_BAUD_RATES.map((rate) => (
+            <option key={rate} value={rate}>
+              {rate} baud
+            </option>
+          ))}
+        </select>
+      </div>
     );
   }
 
