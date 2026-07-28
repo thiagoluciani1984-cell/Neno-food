@@ -108,19 +108,19 @@ export function StoreHeader({
               </Link>
             </Button>
           ) : (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5">
               <Button
                 asChild
                 variant="ghost"
                 size="sm"
-                className="rounded-full px-3 text-sm font-bold text-[#4d443e] hover:bg-orange-50 hover:text-primary"
+                className="rounded-full px-2 text-xs font-bold text-[#4d443e] hover:bg-orange-50 hover:text-primary sm:px-3 sm:text-sm"
               >
                 <Link href="/login">Entrar</Link>
               </Button>
               <Button
                 asChild
                 size="sm"
-                className="hidden rounded-full bg-primary px-4 font-bold text-white shadow-md shadow-primary/25 hover:bg-primary/90 sm:inline-flex"
+                className="rounded-full bg-primary px-2.5 text-xs font-bold text-white shadow-md shadow-primary/25 hover:bg-primary/90 sm:px-4 sm:text-sm"
               >
                 <Link href="/signup/customer">Cadastre-se</Link>
               </Button>
