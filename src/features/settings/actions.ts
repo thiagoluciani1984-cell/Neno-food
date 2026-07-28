@@ -60,6 +60,7 @@ export async function saveSettingsAction(
     .from("restaurants")
     .update({
       establishment_type: data.establishment_type,
+      additional_establishment_types: data.additional_establishment_types,
       cuisine: data.cuisine,
     })
     .eq("id", restaurantId);

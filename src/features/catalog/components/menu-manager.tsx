@@ -84,84 +84,58 @@ export function MenuManager({
             />
           </div>
 
-          <div className="grid gap-3">
-            {products.map((product) => {
-              const cat = categories.find((c) => c.id === product.category_id);
-              const imageUrl = resolveMenuImage(product.slug, product.image_url);
+          <div className="space-y-6">
+            {categories.map((cat) => {
+              const catProducts = products.filter((p) => p.category_id === cat.id);
+              if (catProducts.length === 0) return null;
               return (
-                <Card key={product.id}>
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {imageUrl ? (
-                        <Image
-                          src={imageUrl}
-                          alt={product.name}
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <UtensilsCrossed className="h-5 w-5" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{product.name}</p>
-                        {cat && <Badge variant="outline">{cat.name}</Badge>}
-                        {product.is_featured && <Badge variant="gold">Destaque</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {product.promo_price_cents != null ? (
-                          <>
-                            <span className="font-medium text-primary">
-                              {formatBRL(product.promo_price_cents)}
-                            </span>{" "}
-                            <span className="line-through">
-                              {formatBRL(product.price_cents)}
-                            </span>
-                          </>
-                        ) : (
-                          formatBRL(product.price_cents)
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <Switch
-                          checked={availability[product.id] ?? product.is_available}
-                          onCheckedChange={(v) => toggle(product.id, v)}
-                        />
-                        <span className="text-[10px] text-muted-foreground">
-                          {availability[product.id] ? "Ativo" : "Pausado"}
-                        </span>
-                      </div>
-
-                      <ProductDialog
+                <div key={cat.id}>
+                  <h2 className="mb-2 flex items-center gap-2 font-serif text-lg font-semibold">
+                    {cat.name}
+                    {!cat.is_active && <Badge variant="secondary">Inativa</Badge>}
+                  </h2>
+                  <div className="grid gap-3">
+                    {catProducts.map((product) => (
+                      <ProductRow
+                        key={product.id}
                         product={product}
                         categories={categories}
-                        trigger={
-                          <Button variant="outline" size="icon">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        }
+                        available={availability[product.id] ?? product.is_available}
+                        onToggle={toggle}
+                        onRemove={removeProduct}
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={() => removeProduct(product.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ))}
+                  </div>
+                </div>
               );
             })}
+
+            {(() => {
+              const uncategorized = products.filter(
+                (p) => !categories.some((c) => c.id === p.category_id)
+              );
+              if (uncategorized.length === 0) return null;
+              return (
+                <div>
+                  <h2 className="mb-2 font-serif text-lg font-semibold text-muted-foreground">
+                    Sem categoria
+                  </h2>
+                  <div className="grid gap-3">
+                    {uncategorized.map((product) => (
+                      <ProductRow
+                        key={product.id}
+                        product={product}
+                        categories={categories}
+                        available={availability[product.id] ?? product.is_available}
+                        onToggle={toggle}
+                        onRemove={removeProduct}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {products.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Nenhum produto cadastrado.
@@ -223,5 +197,88 @@ export function MenuManager({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ProductRow({
+  product,
+  categories,
+  available,
+  onToggle,
+  onRemove,
+}: {
+  product: Product;
+  categories: Category[];
+  available: boolean;
+  onToggle: (id: string, value: boolean) => void;
+  onRemove: (id: string) => void;
+}) {
+  const imageUrl = resolveMenuImage(product.slug, product.image_url);
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-4 p-4">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={product.name}
+              fill
+              sizes="64px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <UtensilsCrossed className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{product.name}</p>
+            {product.is_featured && <Badge variant="gold">Destaque</Badge>}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {product.promo_price_cents != null ? (
+              <>
+                <span className="font-medium text-primary">
+                  {formatBRL(product.promo_price_cents)}
+                </span>{" "}
+                <span className="line-through">{formatBRL(product.price_cents)}</span>
+              </>
+            ) : (
+              formatBRL(product.price_cents)
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-1">
+            <Switch checked={available} onCheckedChange={(v) => onToggle(product.id, v)} />
+            <span className="text-[10px] text-muted-foreground">
+              {available ? "Ativo" : "Pausado"}
+            </span>
+          </div>
+
+          <ProductDialog
+            product={product}
+            categories={categories}
+            trigger={
+              <Button variant="outline" size="icon">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive"
+            onClick={() => onRemove(product.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

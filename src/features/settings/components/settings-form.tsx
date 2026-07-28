@@ -45,7 +45,11 @@ export function SettingsForm({
   asaasDevMock = false,
 }: {
   initial: RestaurantSettings | null;
-  restaurant: { cuisine: string; establishment_type: EstablishmentType };
+  restaurant: {
+    cuisine: string;
+    establishment_type: EstablishmentType;
+    additional_establishment_types: EstablishmentType[];
+  };
   asaasConfigured?: boolean;
   asaasDevMock?: boolean;
 }) {
@@ -58,6 +62,7 @@ export function SettingsForm({
 
   const [form, setForm] = useState<SettingsInput>({
     establishment_type: restaurant.establishment_type,
+    additional_establishment_types: restaurant.additional_establishment_types,
     cuisine: restaurant.cuisine,
     is_open: initial?.is_open ?? false,
     auto_accept_orders: initial?.auto_accept_orders ?? false,
@@ -85,6 +90,17 @@ export function SettingsForm({
 
   function set<K extends keyof SettingsInput>(key: K, value: SettingsInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function toggleAdditionalType(type: EstablishmentType) {
+    setForm((prev) => {
+      const current = prev.additional_establishment_types;
+      if (current.includes(type)) {
+        return { ...prev, additional_establishment_types: current.filter((t) => t !== type) };
+      }
+      if (current.length >= 2) return prev; // máximo 2 categorias extras
+      return { ...prev, additional_establishment_types: [...current, type] };
+    });
   }
 
   function togglePayment(method: PaymentMethod) {
@@ -234,7 +250,13 @@ export function SettingsForm({
                     name="establishment_type"
                     value={t.value}
                     checked={form.establishment_type === t.value}
-                    onChange={() => set("establishment_type", t.value)}
+                    onChange={() => {
+                      set("establishment_type", t.value);
+                      set(
+                        "additional_establishment_types",
+                        form.additional_establishment_types.filter((x) => x !== t.value)
+                      );
+                    }}
                     className="accent-primary"
                   />
                   {t.label}
@@ -242,6 +264,34 @@ export function SettingsForm({
               ))}
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label>Categorias adicionais (opcional, até 2)</Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ESTABLISHMENT_TYPE_OPTIONS.filter((t) => t.value !== form.establishment_type).map(
+                (t) => {
+                  const checked = form.additional_establishment_types.includes(t.value);
+                  const disabled = !checked && form.additional_establishment_types.length >= 2;
+                  return (
+                    <label
+                      key={t.value}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:font-semibold ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => toggleAdditionalType(t.value)}
+                        className="accent-primary"
+                      />
+                      {t.label}
+                    </label>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2 sm:max-w-xs">
             <Label htmlFor="cuisine">Tipo de culinária</Label>
             <Input

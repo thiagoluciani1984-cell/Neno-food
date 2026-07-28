@@ -17,9 +17,13 @@ export default async function SettingsPage() {
     getRestaurantSettings(restaurantId),
     supabase
       .from("restaurants")
-      .select("cuisine, establishment_type")
+      .select("cuisine, establishment_type, additional_establishment_types")
       .eq("id", restaurantId)
-      .single<{ cuisine: string; establishment_type: EstablishmentType }>(),
+      .single<{
+        cuisine: string;
+        establishment_type: EstablishmentType;
+        additional_establishment_types: EstablishmentType[];
+      }>(),
   ]);
 
   return (
@@ -28,6 +32,7 @@ export default async function SettingsPage() {
       restaurant={{
         cuisine: restaurant?.cuisine ?? "",
         establishment_type: restaurant?.establishment_type ?? "restaurant",
+        additional_establishment_types: restaurant?.additional_establishment_types ?? [],
       }}
       asaasConfigured={isAsaasConfigured()}
       asaasDevMock={isAsaasDevMock()}

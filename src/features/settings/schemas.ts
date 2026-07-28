@@ -15,6 +15,7 @@ const daySchema = z.object({
 export const settingsSchema = z.object({
   // Categoria
   establishment_type: z.enum(ESTABLISHMENT_TYPES),
+  additional_establishment_types: z.array(z.enum(ESTABLISHMENT_TYPES)).max(2),
   cuisine: z.string().min(2, "Informe o tipo de culinária").max(80),
 
   // Operação

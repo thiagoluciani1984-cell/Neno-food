@@ -100,6 +100,7 @@ export interface Restaurant {
   chef_name: string | null;
   price_range: 1 | 2 | 3 | 4 | null;
   establishment_type: string;
+  additional_establishment_types: string[];
   onboarding_status: OnboardingStatus;
   registration_step: 1 | 2 | 3 | 4;
   rejection_reason: string | null;
