@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Zap, BadgeCheck } from "lucide-react";
 import { loginAction, type ActionResult } from "@/features/auth/actions";
+import { createClient } from "@/infra/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,29 @@ function SubmitButton() {
       {pending ? "Entrando..." : "Entrar"}
       {!pending && <ArrowRight className="h-4 w-4" />}
     </Button>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.8Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.9l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.95H1.27v3.1C3.25 21.3 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.3a7.2 7.2 0 0 1 0-4.6v-3.1H1.27a12 12 0 0 0 0 10.8l4-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.76 0 3.34.6 4.59 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.27 6.6l4 3.1C6.22 6.86 8.87 4.75 12 4.75Z"
+      />
+    </svg>
   );
 }
 
@@ -35,6 +59,25 @@ export function LoginForm() {
     {}
   );
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  async function handleGoogleLogin() {
+    setGoogleError(null);
+    setGoogleLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect || "/")}`,
+      },
+    });
+    if (error) {
+      setGoogleError("Não foi possível entrar com Google agora. Tente com e-mail e senha.");
+      setGoogleLoading(false);
+    }
+    // em caso de sucesso, o navegador já é redirecionado pro Google
+  }
 
   return (
     <div className="space-y-6 rounded-3xl bg-white p-6 shadow-xl shadow-black/5 sm:p-8">
@@ -126,6 +169,29 @@ export function LoginForm() {
         )}
 
         <SubmitButton />
+
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          ou
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        {googleError && (
+          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {googleError}
+          </p>
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full gap-2"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading}
+        >
+          <GoogleIcon />
+          {googleLoading ? "Redirecionando..." : "Entrar com Google"}
+        </Button>
 
         <p className="text-center text-sm text-muted-foreground">
           Não tem conta?{" "}
