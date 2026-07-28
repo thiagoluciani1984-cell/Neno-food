@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { MapPin, Bell, ChevronDown, SlidersHorizontal, ShoppingBag, User, Search } from "lucide-react";
+import { MapPin, Bell, ChevronDown, SlidersHorizontal, ShoppingBag, User, LogOut, Search } from "lucide-react";
 import { fadeInMotion } from "@/lib/motion/nenos-motion";
 import { useNenosVariants } from "@/lib/motion/use-nenos-motion";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/use-cart";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { useMounted } from "@/lib/use-mounted";
+import { logoutAction } from "@/features/auth/actions";
 import type { Notification } from "@/types/database.types";
 
 export function StoreHeader({
@@ -97,16 +98,30 @@ export function StoreHeader({
           )}
 
           {isLoggedIn ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="hidden rounded-full text-muted-foreground hover:bg-orange-50 hover:text-primary sm:inline-flex"
-            >
-              <Link href="/account" aria-label="Minha conta">
-                <User className="h-5 w-5" />
-              </Link>
-            </Button>
+            <>
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="hidden rounded-full text-muted-foreground hover:bg-orange-50 hover:text-primary sm:inline-flex"
+              >
+                <Link href="/account" aria-label="Minha conta">
+                  <User className="h-5 w-5" />
+                </Link>
+              </Button>
+              <form action={logoutAction}>
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-muted-foreground hover:bg-orange-50 hover:text-destructive"
+                  aria-label="Sair"
+                  title="Sair"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </form>
+            </>
           ) : (
             <div className="flex items-center gap-1 sm:gap-1.5">
               <Button
