@@ -6,9 +6,18 @@
   "main": "agent.js",
   "scripts": {
     "start": "node agent.js",
-    "test-print": "node agent.js --test"
+    "test-print": "node agent.js --test",
+    "setup": "node agent.js --setup",
+    "build": "pkg . --targets node18-win-x64 --output dist/NenosPrintAgent.exe"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.21.0"
+  },
+  "pkg": {
+    "scripts": ["print-receipt.js", "escpos.js"],
+    "assets": [".env.example"]
   }
 }

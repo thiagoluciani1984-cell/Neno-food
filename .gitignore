@@ -43,3 +43,7 @@ supabase/.temp
 .env*
 !.env.example
 !**/.env.example
+
+# print agent (executável compilado é artefato de build, não vai pro git)
+scripts/print-agent/node_modules/
+scripts/print-agent/dist/
