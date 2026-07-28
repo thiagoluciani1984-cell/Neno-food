@@ -1,0 +1,14 @@
+{
+  "name": "nenos-print-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agente local de impressao termica para o painel do restaurante Nenos Food",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js",
+    "test-print": "node agent.js --test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
