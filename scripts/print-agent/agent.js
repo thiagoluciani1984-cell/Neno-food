@@ -9,6 +9,9 @@
  *                                   depois disso já inicia o monitoramento
  *   NenosPrintAgent.exe --test     imprime um cupom de teste e sai
  *   NenosPrintAgent.exe --setup    refaz a configuração (login/impressora)
+ *   NenosPrintAgent.exe --print-supplies "Nome do restaurante"
+ *                                   imprime a lista de insumos pendentes de
+ *                                   aprovação daquele restaurante e sai
  *
  * Uso (versão Node.js, pra quem preferir): copie .env.example para .env e
  * preencha os valores manualmente — o agente usa esse arquivo se existir.
@@ -20,6 +23,7 @@ const readline = require("readline");
 const { execFile } = require("child_process");
 const { createClient } = require("@supabase/supabase-js");
 const { buildOrderReceipt } = require("./print-receipt");
+const { buildSupplyListReceipt } = require("./print-supplies");
 const { ReceiptBuilder } = require("./escpos");
 
 // Quando compilado com pkg, os arquivos ficam "dentro" do binário — mas
@@ -144,6 +148,51 @@ async function testPrint(config) {
   log("Cupom de teste enviado. Se não sair nada, revise o nome do compartilhamento e se a impressora está compartilhada no Windows.");
 }
 
+/** Imprime a lista de insumos pendentes de aprovação de um restaurante (por nome). */
+async function printSupplies(supabase, config, restaurantQuery) {
+  log(`Procurando restaurante "${restaurantQuery}"...`);
+  const { data: restaurants, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id, name")
+    .ilike("name", `%${restaurantQuery}%`);
+
+  if (restaurantError || !restaurants || restaurants.length === 0) {
+    console.error(`Nenhum restaurante encontrado com "${restaurantQuery}" no nome.`);
+    return;
+  }
+  if (restaurants.length > 1) {
+    console.error(`Mais de um restaurante encontrado: ${restaurants.map((r) => r.name).join(", ")}`);
+    console.error("Seja mais específico.");
+    return;
+  }
+  const restaurant = restaurants[0];
+
+  const { data: entries, error: entriesError } = await supabase
+    .from("supply_entries")
+    .select("item_name, quantity, unit_type, taken_at")
+    .eq("restaurant_id", restaurant.id)
+    .eq("status", "pending")
+    .order("taken_at", { ascending: true });
+
+  if (entriesError) {
+    console.error("Falha ao buscar lançamentos:", entriesError.message);
+    return;
+  }
+  if (!entries || entries.length === 0) {
+    log(`Nenhum lançamento pendente pra ${restaurant.name}.`);
+    return;
+  }
+
+  log(`Imprimindo ${entries.length} lançamento(s) de ${restaurant.name}...`);
+  try {
+    const receipt = buildSupplyListReceipt(entries, restaurant.name);
+    await printRaw(receipt, config.printerShareName);
+    log("Lista impressa.");
+  } catch (err) {
+    console.error("Falha ao imprimir:", err.message);
+  }
+}
+
 async function main() {
   const forceSetup = process.argv.includes("--setup");
   const config = await loadOrCreateConfig(forceSetup);
@@ -167,6 +216,17 @@ async function main() {
   if (authError) {
     console.error("Falha no login:", authError.message);
     console.error("Confira e-mail/senha. Pra corrigir, rode de novo com --setup.");
+    return;
+  }
+
+  const printSuppliesFlagIndex = process.argv.indexOf("--print-supplies");
+  if (printSuppliesFlagIndex !== -1) {
+    const restaurantQuery = process.argv[printSuppliesFlagIndex + 1];
+    if (!restaurantQuery) {
+      console.error('Uso: --print-supplies "Nome do restaurante"');
+      return;
+    }
+    await printSupplies(supabase, config, restaurantQuery);
     return;
   }
 

@@ -32,3 +32,55 @@ export async function notifyOrderStatusChange(
     payload: { order_id: orderId, status: newStatus },
   });
 }
+
+/** Avisa todo master_admin quando um lançamento de insumo aguarda aprovação. */
+export async function notifySupplyEntryPending(
+  entry: { id: string; item_name: string; quantity: number; unit_type: string },
+  restaurantName: string
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "master_admin");
+
+  if (!admins || admins.length === 0) return;
+
+  const qty = entry.unit_type === "kg" ? `${entry.quantity}kg` : `${entry.quantity}x`;
+
+  await supabase.from("notifications").insert(
+    admins.map((admin) => ({
+      user_id: admin.id,
+      type: "system" as const,
+      title: "Novo insumo lançado",
+      body: `${restaurantName}: ${entry.item_name} (${qty}) aguardando aprovação`,
+      payload: { kind: "supply_entry", entry_id: entry.id },
+    }))
+  );
+}
+
+/** Avisa o dono/equipe do restaurante quando um insumo do estoque cruza o mínimo. */
+export async function notifyLowStock(
+  restaurantId: string,
+  item: { id: string; name: string; current_quantity: number; unit_type: string }
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  const { data: staff } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("restaurant_id", restaurantId);
+
+  if (!staff || staff.length === 0) return;
+
+  await supabase.from("notifications").insert(
+    staff.map((p) => ({
+      user_id: p.id,
+      type: "system" as const,
+      title: "Estoque baixo",
+      body: `${item.name}: só ${item.current_quantity}${item.unit_type} restando`,
+      payload: { kind: "stock_low", item_id: item.id },
+    }))
+  );
+}

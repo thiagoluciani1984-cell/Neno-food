@@ -17,6 +17,8 @@ import {
   UserCog,
   Camera,
   Rss,
+  Package,
+  Boxes,
 } from "lucide-react";
 import { springSoft } from "@/lib/motion/nenos-motion";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,8 @@ const NAV = [
   { href: "/dashboard/customers", label: "Clientes", icon: Users },
   { href: "/dashboard/coupons", label: "Cupons", icon: Ticket },
   { href: "/dashboard/delivery", label: "Entregas", icon: Bike },
+  { href: "/dashboard/supplies", label: "Insumos", icon: Package },
+  { href: "/dashboard/estoque", label: "Estoque", icon: Boxes },
   { href: "/dashboard/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Configurações", icon: Settings },
 ];

@@ -658,6 +658,90 @@ export interface LaunchWheelSpin {
   created_at: string;
 }
 
+// ─── Insumos (0044) ───────────────────────────────────────────────────────────
+
+export type SupplyUnitType = "kg" | "unit";
+export type SupplyEntryStatus = "pending" | "approved" | "rejected";
+
+export interface SupplyItem {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  unit_type: SupplyUnitType;
+  default_price_cents: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplyEntry {
+  id: string;
+  restaurant_id: string;
+  item_id: string | null;
+  item_name: string;
+  unit_type: SupplyUnitType;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+  taken_at: string;
+  notes: string | null;
+  status: SupplyEntryStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Estoque (0045) ───────────────────────────────────────────────────────────
+
+export type StockUnitType = "g" | "kg" | "ml" | "l" | "un";
+export type StockMovementType = "in" | "out";
+export type StockMovementReason =
+  | "purchase"
+  | "sale_deduction"
+  | "loss"
+  | "adjustment"
+  | "supply_transfer";
+
+export interface StockItem {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  unit_type: StockUnitType;
+  min_quantity: number;
+  current_quantity: number;
+  unit_cost_cents: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMovement {
+  id: string;
+  restaurant_id: string;
+  stock_item_id: string;
+  type: StockMovementType;
+  reason: StockMovementReason;
+  quantity: number;
+  unit_cost_cents: number;
+  total_cost_cents: number;
+  related_order_id: string | null;
+  source_supply_entry_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface StockRecipe {
+  id: string;
+  restaurant_id: string;
+  product_id: string;
+  stock_item_id: string;
+  quantity_per_unit: number;
+  created_at: string;
+}
+
 // ─── Tipos compostos (joins comuns) ──────────────────────────────────────────
 
 export interface ProductWithCategory extends Product {
