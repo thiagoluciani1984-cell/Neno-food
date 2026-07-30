@@ -181,3 +181,26 @@ export async function approveSupplyEntryAction(entryId: string): Promise<SupplyA
 export async function rejectSupplyEntryAction(entryId: string): Promise<SupplyActionResult> {
   return setSupplyEntryStatus(entryId, "rejected");
 }
+
+export type CloseBatchResult = { ok: true; count: number } | { ok: false; error: string };
+
+/** Marca todo lançamento aprovado-e-ainda-não-pago como pago agora (fecha o lote). */
+export async function closeSupplyBatchAction(): Promise<CloseBatchResult> {
+  const { profile } = await getSession();
+  if (profile?.role !== "master_admin") {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const restaurantId = await getActiveRestaurantId();
+  if (!restaurantId) return { ok: false, error: "Restaurante não encontrado." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("close_supply_batch", {
+    p_restaurant_id: restaurantId,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard/supplies");
+  return { ok: true, count: data ?? 0 };
+}
