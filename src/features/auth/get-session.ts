@@ -33,20 +33,27 @@ async function restaurantIdFromSlug(slug: string): Promise<string | null> {
 
 /**
  * Restaurante ativo no dashboard:
- * 1. profile.restaurant_id (dono/staff)
- * 2. cookie dashboard_restaurant (master_admin)
+ * 1. cookie dashboard_restaurant, mas só pra master_admin/moderator (o
+ *    seletor de restaurante no topo do dashboard) — tem prioridade sobre
+ *    o restaurant_id do próprio perfil porque um master_admin pode também
+ *    ser dono de um restaurante (ex: acumula os dois papéis) e mesmo assim
+ *    precisa conseguir navegar pros outros.
+ * 2. profile.restaurant_id (dono/staff, ou fallback do próprio master_admin)
  * 3. slug padrão do .env
  */
 export async function getActiveRestaurantId(): Promise<string | null> {
   const { profile } = await getSession();
-  if (profile?.restaurant_id) return profile.restaurant_id;
 
-  const cookieStore = await cookies();
-  const cookieSlug = cookieStore.get("dashboard_restaurant")?.value;
-  if (cookieSlug) {
-    const id = await restaurantIdFromSlug(cookieSlug);
-    if (id) return id;
+  if (profile && ["master_admin", "moderator"].includes(profile.role)) {
+    const cookieStore = await cookies();
+    const cookieSlug = cookieStore.get("dashboard_restaurant")?.value;
+    if (cookieSlug) {
+      const id = await restaurantIdFromSlug(cookieSlug);
+      if (id) return id;
+    }
   }
+
+  if (profile?.restaurant_id) return profile.restaurant_id;
 
   return restaurantIdFromSlug(
     process.env.NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG ?? "lucianis-di-qualita"
