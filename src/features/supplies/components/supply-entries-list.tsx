@@ -36,10 +36,12 @@ export function SupplyEntriesList({
   restaurantId,
   initialEntries,
   isMasterAdmin,
+  viewerProfileId,
 }: {
   restaurantId: string;
   initialEntries: SupplyEntry[];
   isMasterAdmin: boolean;
+  viewerProfileId: string | null;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -184,7 +186,8 @@ export function SupplyEntriesList({
               </div>
 
               <div className="flex items-center gap-1">
-                {entry.status === "pending" && isMasterAdmin && (
+                {entry.status === "pending" &&
+                  (isMasterAdmin || entry.created_by !== viewerProfileId) && (
                   <>
                     <Button
                       size="sm"

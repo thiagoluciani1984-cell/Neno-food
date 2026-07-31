@@ -32,6 +32,7 @@ export default async function SuppliesPage() {
         entries={entries}
         report={report}
         isMasterAdmin={profile?.role === "master_admin"}
+        viewerProfileId={profile?.id ?? null}
       />
     </div>
   );

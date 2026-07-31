@@ -14,12 +14,14 @@ export function SuppliesDashboard({
   entries,
   report,
   isMasterAdmin,
+  viewerProfileId,
 }: {
   restaurantId: string;
   items: SupplyItem[];
   entries: SupplyEntry[];
   report: { rows: SupplyReportRow[]; totalCents: number };
   isMasterAdmin: boolean;
+  viewerProfileId: string | null;
 }) {
   return (
     <Tabs defaultValue="lancar" className="space-y-4">
@@ -35,6 +37,7 @@ export function SuppliesDashboard({
           restaurantId={restaurantId}
           initialEntries={entries}
           isMasterAdmin={isMasterAdmin}
+          viewerProfileId={viewerProfileId}
         />
       </TabsContent>
 

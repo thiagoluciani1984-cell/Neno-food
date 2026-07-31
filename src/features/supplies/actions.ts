@@ -158,11 +158,27 @@ async function setSupplyEntryStatus(
   status: "approved" | "rejected"
 ): Promise<SupplyActionResult> {
   const { user, profile } = await getSession();
-  if (!user || profile?.role !== "master_admin") {
-    return { ok: false, error: "Sem permissão." };
-  }
+  if (!user || !profile) return { ok: false, error: "Sessão expirada. Faça login novamente." };
 
   const supabase = await createClient();
+
+  const { data: entry } = await supabase
+    .from("supply_entries")
+    .select("id, restaurant_id, created_by")
+    .eq("id", entryId)
+    .maybeSingle<{ id: string; restaurant_id: string; created_by: string | null }>();
+
+  if (!entry) return { ok: false, error: "Lançamento não encontrado." };
+
+  // Quem lançou não aprova o próprio lançamento — o outro lado do
+  // restaurante confirma. master_admin sempre pode, como reforço.
+  const isMasterAdmin = profile.role === "master_admin";
+  const isSameRestaurant = profile.restaurant_id === entry.restaurant_id;
+  const isOwnEntry = entry.created_by === profile.id;
+  if (!isMasterAdmin && !(isSameRestaurant && !isOwnEntry)) {
+    return { ok: false, error: "Sem permissão — só quem não lançou este item pode aprovar." };
+  }
+
   const update: Record<string, unknown> = { status, approved_by: profile.id };
   if (status === "approved") update.approved_at = new Date().toISOString();
 
