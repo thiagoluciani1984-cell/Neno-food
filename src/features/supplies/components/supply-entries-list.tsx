@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Check, X, Trash2, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { formatBRL } from "@/lib/money";
 import { UNIT_TYPE_LABELS } from "@/features/supplies/schemas";
 import {
@@ -28,70 +27,29 @@ function formatDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
-
 export function SupplyEntriesList({
-  restaurantId,
-  initialEntries,
+  entries,
   isMasterAdmin,
   viewerProfileId,
 }: {
-  restaurantId: string;
-  initialEntries: SupplyEntry[];
+  entries: SupplyEntry[];
   isMasterAdmin: boolean;
   viewerProfileId: string | null;
 }) {
-  const [entries, setEntries] = useState(initialEntries);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
-
-  useEffect(() => {
-    const supabase = createClient();
-    let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
-    void getRealtimeAuthReady().then(() => {
-      if (cancelled) return;
-      channel = supabase
-        .channel(`supply-entries-${restaurantId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "supply_entries",
-            filter: `restaurant_id=eq.${restaurantId}`,
-          },
-          (payload) => {
-            if (payload.eventType === "INSERT") {
-              const row = payload.new as SupplyEntry;
-              setEntries((prev) => [row, ...prev]);
-              toast.info(`Novo insumo lançado: ${row.item_name}`);
-            } else if (payload.eventType === "UPDATE") {
-              const row = payload.new as SupplyEntry;
-              setEntries((prev) => prev.map((e) => (e.id === row.id ? row : e)));
-            } else if (payload.eventType === "DELETE") {
-              const row = payload.old as { id: string };
-              setEntries((prev) => prev.filter((e) => e.id !== row.id));
-            }
-          }
-        )
-        .subscribe();
-    });
-
-    return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [restaurantId]);
 
   const openBatch = useMemo(
     () => entries.filter((e) => e.status === "approved" && !e.paid_at),
     [entries]
   );
   const openBatchTotalCents = openBatch.reduce((sum, e) => sum + e.total_cents, 0);
+
+  // Lote pago já fechado sai daqui — fica só na aba "Lotes fechados".
+  const visibleEntries = useMemo(
+    () => entries.filter((e) => !(e.status === "approved" && e.paid_at)),
+    [entries]
+  );
 
   async function handleApprove(id: string) {
     setBusyId(id);
@@ -152,17 +110,16 @@ export function SupplyEntriesList({
         </Card>
       )}
 
-      {entries.length === 0 && (
+      {visibleEntries.length === 0 && (
         <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">Nenhum lançamento ainda.</CardContent>
+          <CardContent className="py-6 text-sm text-muted-foreground">Nenhum lançamento ativo no momento.</CardContent>
         </Card>
       )}
 
       <div className="space-y-2">
-        {entries.map((entry) => {
+        {visibleEntries.map((entry) => {
           const badge = STATUS_BADGE[entry.status];
           const busy = busyId === entry.id;
-          const isPaid = entry.status === "approved" && !!entry.paid_at;
           return (
             <div
               key={entry.id}
@@ -172,11 +129,6 @@ export function SupplyEntriesList({
                 <div className="flex items-center gap-2">
                   <p className="font-medium">{entry.item_name}</p>
                   <Badge variant={badge.variant}>{badge.label}</Badge>
-                  {isPaid && (
-                    <Badge variant="muted" className="gap-1">
-                      <Lock className="h-3 w-3" /> Pago em {formatDateTime(entry.paid_at as string)}
-                    </Badge>
-                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {entry.quantity} {UNIT_TYPE_LABELS[entry.unit_type]} · {formatBRL(entry.total_cents)} · pego em{" "}
