@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActiveRestaurantId, getSession } from "@/features/auth/get-session";
-import { listSupplyItems, listSupplyEntries, getSupplyReport } from "@/features/supplies/queries";
+import { listSupplyItems, listSupplyEntries } from "@/features/supplies/queries";
 import { SuppliesDashboard } from "@/features/supplies/components/supplies-dashboard";
 
 export const metadata = { title: "Insumos" };
@@ -11,10 +11,9 @@ export default async function SuppliesPage() {
 
   const { profile } = await getSession();
 
-  const [items, entries, report] = await Promise.all([
+  const [items, entries] = await Promise.all([
     listSupplyItems(restaurantId),
     listSupplyEntries(restaurantId),
-    getSupplyReport(restaurantId),
   ]);
 
   return (
@@ -30,7 +29,6 @@ export default async function SuppliesPage() {
         restaurantId={restaurantId}
         items={items}
         entries={entries}
-        report={report}
         isMasterAdmin={profile?.role === "master_admin"}
         viewerProfileId={profile?.id ?? null}
       />

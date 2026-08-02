@@ -8,22 +8,18 @@ import { SupplyEntryForm } from "./supply-entry-form";
 import { SupplyEntriesList } from "./supply-entries-list";
 import { SupplyItemManager } from "./supply-item-manager";
 import { SupplyReport } from "./supply-report";
-import { SupplyClosedBatches } from "./supply-closed-batches";
 import type { SupplyItem, SupplyEntry } from "@/types/database.types";
-import type { SupplyReportRow } from "@/features/supplies/queries";
 
 export function SuppliesDashboard({
   restaurantId,
   items,
   entries: initialEntries,
-  report,
   isMasterAdmin,
   viewerProfileId,
 }: {
   restaurantId: string;
   items: SupplyItem[];
   entries: SupplyEntry[];
-  report: { rows: SupplyReportRow[]; totalCents: number };
   isMasterAdmin: boolean;
   viewerProfileId: string | null;
 }) {
@@ -73,7 +69,6 @@ export function SuppliesDashboard({
     <Tabs defaultValue="lancar" className="space-y-4">
       <TabsList>
         <TabsTrigger value="lancar">Lançar</TabsTrigger>
-        <TabsTrigger value="lotes-fechados">Lotes fechados</TabsTrigger>
         <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
         <TabsTrigger value="relatorio">Relatório</TabsTrigger>
       </TabsList>
@@ -87,16 +82,12 @@ export function SuppliesDashboard({
         />
       </TabsContent>
 
-      <TabsContent value="lotes-fechados">
-        <SupplyClosedBatches entries={entries} />
-      </TabsContent>
-
       <TabsContent value="catalogo">
         <SupplyItemManager items={items} />
       </TabsContent>
 
       <TabsContent value="relatorio">
-        <SupplyReport rows={report.rows} totalCents={report.totalCents} />
+        <SupplyReport entries={entries} />
       </TabsContent>
     </Tabs>
   );
