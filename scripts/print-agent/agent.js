@@ -24,6 +24,7 @@ const { execFile } = require("child_process");
 const { createClient } = require("@supabase/supabase-js");
 const { buildOrderReceipt } = require("./print-receipt");
 const { buildSupplyListReceipt } = require("./print-supplies");
+const { buildSupplyBatchReceipt, getEffectiveSupplyEntryTotalCents } = require("./print-batch");
 const { ReceiptBuilder } = require("./escpos");
 
 // Quando compilado com pkg, os arquivos ficam "dentro" do binário — mas
@@ -193,6 +194,48 @@ async function printSupplies(supabase, config, restaurantQuery) {
   }
 }
 
+/** Imprime um lote fechado de insumos (paid_at = batchKey) da conta logada. */
+async function printClosedBatch(supabase, config, restaurantId, restaurantName, batchKey) {
+  log(`Buscando lote fechado em ${batchKey}...`);
+  const { data: entries, error: entriesError } = await supabase
+    .from("supply_entries")
+    .select("id, item_id, item_name, quantity, unit_type, unit_price_cents, total_cents, taken_at, notes, paid_at")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "approved")
+    .eq("paid_at", batchKey)
+    .order("taken_at", { ascending: true });
+
+  if (entriesError) {
+    console.error("Falha ao buscar lançamentos do lote:", entriesError.message);
+    return;
+  }
+  if (!entries || entries.length === 0) {
+    log("Nenhum lançamento encontrado para esse lote.");
+    return;
+  }
+
+  const { data: items } = await supabase
+    .from("supply_items")
+    .select("id, name, default_price_cents")
+    .eq("restaurant_id", restaurantId);
+
+  const itemsById = new Map((items ?? []).map((item) => [item.id, item]));
+  const totalCents = entries.reduce(
+    (sum, entry) => sum + getEffectiveSupplyEntryTotalCents(entry, entry.item_id ? itemsById.get(entry.item_id) : null),
+    0
+  );
+  const label = `Fechado em ${new Date(batchKey).toLocaleString("pt-BR")}`;
+
+  log(`Imprimindo lote de ${entries.length} lançamento(s) — ${restaurantName}...`);
+  try {
+    const receipt = buildSupplyBatchReceipt({ label, entries, items: items ?? [], totalCents }, restaurantName);
+    await printRaw(receipt, config.printerShareName);
+    log("Lote impresso.");
+  } catch (err) {
+    console.error("Falha ao imprimir:", err.message);
+  }
+}
+
 async function main() {
   const forceSetup = process.argv.includes("--setup");
   const config = await loadOrCreateConfig(forceSetup);
@@ -227,6 +270,40 @@ async function main() {
       return;
     }
     await printSupplies(supabase, config, restaurantQuery);
+    return;
+  }
+
+  if (process.argv.includes("--print-closed-batch")) {
+    const batchKeyIndex = process.argv.indexOf("--batch-key");
+    const batchKey = batchKeyIndex !== -1 ? process.argv[batchKeyIndex + 1] : "";
+    if (!batchKey) {
+      console.error('Uso: --print-closed-batch --batch-key "<paid_at>"');
+      return;
+    }
+
+    const { data: batchProfile, error: batchProfileError } = await supabase
+      .from("profiles")
+      .select("restaurant_id, full_name")
+      .eq("id", authData.user.id)
+      .single();
+    if (batchProfileError || !batchProfile?.restaurant_id) {
+      console.error("Não foi possível identificar o restaurante desta conta.", batchProfileError?.message);
+      return;
+    }
+
+    const { data: batchRestaurant } = await supabase
+      .from("restaurants")
+      .select("name")
+      .eq("id", batchProfile.restaurant_id)
+      .single();
+
+    await printClosedBatch(
+      supabase,
+      config,
+      batchProfile.restaurant_id,
+      batchRestaurant?.name ?? "Nenos Food",
+      batchKey
+    );
     return;
   }
 
