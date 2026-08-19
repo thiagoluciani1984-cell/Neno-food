@@ -26,6 +26,7 @@ export default async function SuppliesPage() {
       </div>
 
       <SuppliesDashboard
+        key={restaurantId}
         restaurantId={restaurantId}
         items={items}
         entries={entries}
