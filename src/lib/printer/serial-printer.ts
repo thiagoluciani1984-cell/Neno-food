@@ -54,6 +54,7 @@ export async function requestPrinterPort(): Promise<boolean> {
   try {
     const port = await navigator.serial.requestPort();
     cachedPort = port;
+    openPromise = null; // porta nova — descarta qualquer open() travado da anterior
     return true;
   } catch {
     return false; // usuário cancelou o seletor de dispositivo
@@ -89,7 +90,12 @@ async function printBytesInternal(
 
   try {
     if (!port.readable && !port.writable) {
-      if (!openPromise) openPromise = port.open({ baudRate: getBaudRate() });
+      if (!openPromise) {
+        openPromise = port.open({ baudRate: getBaudRate() }).catch((error) => {
+          openPromise = null; // não deixa uma falha travar as proximas tentativas
+          throw error;
+        });
+      }
       await openPromise;
     }
     const writer = port.writable?.getWriter();

@@ -220,3 +220,30 @@ export async function closeSupplyBatchAction(): Promise<CloseBatchResult> {
   revalidatePath("/dashboard/supplies");
   return { ok: true, count: data ?? 0 };
 }
+
+/**
+ * Pede a impressão de um lote fechado. O painel roda na Vercel e não tem
+ * como acionar o agente local diretamente — só grava o pedido na fila;
+ * o agente (que já fica de pé monitorando pedidos novos) confere essa
+ * fila periodicamente e imprime sozinho.
+ */
+export async function requestSupplyBatchPrintAction(batchKey: string): Promise<SupplyActionResult> {
+  if (!batchKey) return { ok: false, error: "Lote inválido." };
+
+  const restaurantId = await getActiveRestaurantId();
+  if (!restaurantId) return { ok: false, error: "Restaurante não encontrado." };
+
+  const { user, profile } = await getSession();
+  if (!user) return { ok: false, error: "Sessão expirada. Faça login novamente." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("supply_print_requests").insert({
+    restaurant_id: restaurantId,
+    batch_key: batchKey,
+    requested_by: profile?.id ?? user.id,
+  });
+
+  if (error) return { ok: false, error: "Falha ao pedir impressão. Tente novamente." };
+
+  return { ok: true };
+}

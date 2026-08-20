@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatBRL } from "@/lib/money";
 import { UNIT_TYPE_LABELS } from "@/features/supplies/schemas";
+import { getSupplyEntryEffectiveTotalCents } from "@/features/supplies/price";
 import {
   approveSupplyEntryAction,
   rejectSupplyEntryAction,
   deleteSupplyEntryAction,
   closeSupplyBatchAction,
 } from "@/features/supplies/actions";
-import type { SupplyEntry } from "@/types/database.types";
+import type { SupplyEntry, SupplyItem } from "@/types/database.types";
 
 const STATUS_BADGE: Record<SupplyEntry["status"], { label: string; variant: "warning" | "success" | "destructive" }> = {
   pending: { label: "Pendente", variant: "warning" },
@@ -29,21 +30,28 @@ function formatDate(iso: string): string {
 
 export function SupplyEntriesList({
   entries,
+  items,
   isMasterAdmin,
   viewerProfileId,
 }: {
   entries: SupplyEntry[];
+  items: SupplyItem[];
   isMasterAdmin: boolean;
   viewerProfileId: string | null;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
 
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+
   const openBatch = useMemo(
     () => entries.filter((e) => e.status === "approved" && !e.paid_at),
     [entries]
   );
-  const openBatchTotalCents = openBatch.reduce((sum, e) => sum + e.total_cents, 0);
+  const openBatchTotalCents = useMemo(
+    () => openBatch.reduce((sum, e) => sum + getSupplyEntryEffectiveTotalCents(e, (e.item_id && itemsById.get(e.item_id)) || null), 0),
+    [openBatch, itemsById]
+  );
 
   // Lote pago já fechado sai daqui — fica só na aba "Lotes fechados".
   const visibleEntries = useMemo(
@@ -131,7 +139,7 @@ export function SupplyEntriesList({
                   <Badge variant={badge.variant}>{badge.label}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {entry.quantity} {UNIT_TYPE_LABELS[entry.unit_type]} · {formatBRL(entry.total_cents)} · pego em{" "}
+                  {entry.quantity} {UNIT_TYPE_LABELS[entry.unit_type]} · {formatBRL(getSupplyEntryEffectiveTotalCents(entry, (entry.item_id && itemsById.get(entry.item_id)) || null))} · pego em{" "}
                   {formatDate(entry.taken_at)}
                   {entry.notes ? ` · ${entry.notes}` : ""}
                 </p>

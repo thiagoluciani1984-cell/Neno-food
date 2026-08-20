@@ -207,11 +207,11 @@ async function printClosedBatch(supabase, config, restaurantId, restaurantName, 
 
   if (entriesError) {
     console.error("Falha ao buscar lançamentos do lote:", entriesError.message);
-    return;
+    return { ok: false, error: entriesError.message };
   }
   if (!entries || entries.length === 0) {
     log("Nenhum lançamento encontrado para esse lote.");
-    return;
+    return { ok: false, error: "Nenhum lançamento encontrado para esse lote." };
   }
 
   const { data: items } = await supabase
@@ -231,8 +231,34 @@ async function printClosedBatch(supabase, config, restaurantId, restaurantName, 
     const receipt = buildSupplyBatchReceipt({ label, entries, items: items ?? [], totalCents }, restaurantName);
     await printRaw(receipt, config.printerShareName);
     log("Lote impresso.");
+    return { ok: true };
   } catch (err) {
     console.error("Falha ao imprimir:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/** Confere a fila de pedidos de impressão de lote (gravados pelo painel web) e imprime os pendentes. */
+async function checkPrintRequests(supabase, restaurantId, restaurantName, config) {
+  const { data: requests, error } = await supabase
+    .from("supply_print_requests")
+    .select("id, batch_key")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "pending")
+    .order("requested_at", { ascending: true });
+
+  if (error) {
+    log(`Erro ao buscar pedidos de impressão: ${error.message}`);
+    return;
+  }
+  if (!requests || requests.length === 0) return;
+
+  for (const request of requests) {
+    const result = await printClosedBatch(supabase, config, restaurantId, restaurantName, request.batch_key);
+    const update = result.ok
+      ? { status: "printed", printed_at: new Date().toISOString() }
+      : { status: "failed", error: result.error ?? "Falha desconhecida" };
+    await supabase.from("supply_print_requests").update(update).eq("id", request.id);
   }
 }
 
@@ -356,8 +382,13 @@ async function main() {
     }
   }
 
-  await checkNewOrders();
-  setInterval(checkNewOrders, 8000);
+  async function tick() {
+    await checkNewOrders();
+    await checkPrintRequests(supabase, profile.restaurant_id, restaurantName, config);
+  }
+
+  await tick();
+  setInterval(tick, 8000);
 }
 
 main().catch((err) => {

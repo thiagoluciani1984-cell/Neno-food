@@ -47,3 +47,7 @@ supabase/.temp
 # print agent (executável compilado é artefato de build, não vai pro git)
 scripts/print-agent/node_modules/
 scripts/print-agent/dist/
+# config.json/state.json guardam login+senha em texto puro (gerados pelo
+# wizard --setup na primeira execução) — nunca commitar.
+scripts/print-agent/config.json
+scripts/print-agent/state.json

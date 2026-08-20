@@ -77,6 +77,7 @@ export function SuppliesDashboard({
         <SupplyEntryForm items={items} />
         <SupplyEntriesList
           entries={entries}
+          items={items}
           isMasterAdmin={isMasterAdmin}
           viewerProfileId={viewerProfileId}
         />
@@ -87,7 +88,7 @@ export function SuppliesDashboard({
       </TabsContent>
 
       <TabsContent value="relatorio">
-        <SupplyReport entries={entries} />
+        <SupplyReport entries={entries} items={items} />
       </TabsContent>
     </Tabs>
   );

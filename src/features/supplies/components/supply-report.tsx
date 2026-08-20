@@ -1,9 +1,15 @@
-import { Lock, Clock } from "lucide-react";
+import { useMemo } from "react";
+import { Lock, Clock, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { formatBRL } from "@/lib/money";
 import { UNIT_TYPE_LABELS } from "@/features/supplies/schemas";
-import type { SupplyEntry } from "@/types/database.types";
+import { getSupplyEntryEffectiveTotalCents, shouldHideSupplyEntry, resolveSupplyItemReplacement } from "@/features/supplies/price";
+import { getSupplyReportEntries } from "@/features/supplies/visibility";
+import { requestSupplyBatchPrintAction } from "@/features/supplies/actions";
+import type { SupplyEntry, SupplyItem } from "@/types/database.types";
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -22,8 +28,8 @@ type Lote = {
   totalCents: number;
 };
 
-function groupByLote(entries: SupplyEntry[]): Lote[] {
-  const approved = entries.filter((e) => e.status === "approved");
+function groupByLote(entries: SupplyEntry[], itemsById: Map<string, SupplyItem>, items: SupplyItem[]): Lote[] {
+  const approved = getSupplyReportEntries(entries).filter((entry) => !shouldHideSupplyEntry(entry.item_name));
 
   const openEntries = approved.filter((e) => !e.paid_at);
   const closedByPaidAt = new Map<string, SupplyEntry[]>();
@@ -34,6 +40,13 @@ function groupByLote(entries: SupplyEntry[]): Lote[] {
     else closedByPaidAt.set(entry.paid_at, [entry]);
   }
 
+  const entryTotalCents = (e: SupplyEntry) =>
+    getSupplyEntryEffectiveTotalCents(
+      e,
+      (e.item_id && itemsById.get(e.item_id)) || null,
+      resolveSupplyItemReplacement(e.item_name, items)
+    );
+
   const lotes: Lote[] = [];
 
   if (openEntries.length > 0) {
@@ -42,7 +55,7 @@ function groupByLote(entries: SupplyEntry[]): Lote[] {
       label: "Lote em aberto",
       isOpen: true,
       entries: openEntries,
-      totalCents: openEntries.reduce((sum, e) => sum + e.total_cents, 0),
+      totalCents: openEntries.reduce((sum, e) => sum + entryTotalCents(e), 0),
     });
   }
 
@@ -52,16 +65,31 @@ function groupByLote(entries: SupplyEntry[]): Lote[] {
       label: `Fechado em ${formatDateTime(paidAt)}`,
       isOpen: false,
       entries: batchEntries,
-      totalCents: batchEntries.reduce((sum, e) => sum + e.total_cents, 0),
+      totalCents: batchEntries.reduce((sum, e) => sum + entryTotalCents(e), 0),
     }))
     .sort((a, b) => b.key.localeCompare(a.key));
 
   return [...lotes, ...closedLotes];
 }
 
-export function SupplyReport({ entries }: { entries: SupplyEntry[] }) {
-  const lotes = groupByLote(entries);
-  const grandTotalCents = lotes.reduce((sum, l) => sum + l.totalCents, 0);
+export function SupplyReport({ entries, items }: { entries: SupplyEntry[]; items: SupplyItem[] }) {
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const lotes = useMemo(() => groupByLote(entries, itemsById, items), [entries, itemsById, items]);
+  const grandTotalCents = useMemo(() => lotes.reduce((sum, l) => sum + l.totalCents, 0), [lotes]);
+
+  async function handlePrintBatch(batch: Lote) {
+    if (batch.isOpen) {
+      toast.error("A impressão só está disponível para lotes fechados.");
+      return;
+    }
+
+    const result = await requestSupplyBatchPrintAction(batch.key);
+    if (!result.ok) {
+      toast.error(result.error ?? "Falha ao pedir impressão.");
+      return;
+    }
+    toast.success("Impressão pedida! O agente local imprime em alguns segundos.");
+  }
 
   if (lotes.length === 0) {
     return (
@@ -94,9 +122,17 @@ export function SupplyReport({ entries }: { entries: SupplyEntry[] }) {
                 )}
                 {lote.label}
               </CardTitle>
-              <Badge variant={lote.isOpen ? "warning" : "muted"}>
-                {lote.entries.length} lançamento(s) · {formatBRL(lote.totalCents)}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={lote.isOpen ? "warning" : "muted"}>
+                  {lote.entries.length} lançamento(s) · {formatBRL(lote.totalCents)}
+                </Badge>
+                {!lote.isOpen && (
+                  <Button size="sm" variant="outline" onClick={() => void handlePrintBatch(lote)}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Imprimir
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-1.5">
@@ -108,7 +144,15 @@ export function SupplyReport({ entries }: { entries: SupplyEntry[] }) {
                     ({entry.quantity} {UNIT_TYPE_LABELS[entry.unit_type]} · pego em {formatDate(entry.taken_at)})
                   </span>
                 </p>
-                <span className="shrink-0 font-medium">{formatBRL(entry.total_cents)}</span>
+                <span className="shrink-0 font-medium">
+                  {formatBRL(
+                    getSupplyEntryEffectiveTotalCents(
+                      entry,
+                      (entry.item_id && itemsById.get(entry.item_id)) || null,
+                      resolveSupplyItemReplacement(entry.item_name, items)
+                    )
+                  )}
+                </span>
               </div>
             ))}
           </CardContent>
