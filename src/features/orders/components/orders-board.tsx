@@ -163,11 +163,11 @@ export function OrdersBoard({
   }
 
   return (
-    <div className="grid auto-cols-[minmax(280px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
       {COLUMNS.map((col) => {
         const colOrders = orders.filter((o) => o.status === col);
         return (
-          <div key={col} className="min-w-[280px] space-y-3">
+          <div key={col} className="min-w-0 space-y-3 rounded-xl border bg-muted/20 p-3">
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-semibold">{ORDER_STATUS_LABEL[col]}</h2>
               <Badge variant="secondary">{colOrders.length}</Badge>
