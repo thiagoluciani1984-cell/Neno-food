@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/fredoka";
+import "@fontsource-variable/inter";
 import { siteConfig } from "@/config/site";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";

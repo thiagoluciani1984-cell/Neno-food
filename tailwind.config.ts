@@ -17,7 +17,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        serif: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
+        serif: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -62,11 +63,16 @@ const config: Config = {
           orangeDark: "#EA580C",
           yellow: "#FBBF24",
           yellowDark: "#F59E0B",
-          dark: "#1C1917",
-          light: "#FFF9F2",
+          dark: "hsl(var(--brand-ink))",
+          light: "hsl(var(--brand-cream))",
+          surface: "hsl(var(--brand-surface))",
+          cocoa: "hsl(var(--brand-cocoa))",
+          coral: "hsl(var(--brand-coral))",
+          leaf: "hsl(var(--brand-leaf))",
         },
       },
       borderRadius: {
+        display: "var(--radius-display)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",

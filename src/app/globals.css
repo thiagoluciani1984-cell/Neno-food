@@ -6,18 +6,19 @@
 
 @layer base {
   :root {
-    --font-sans: "Inter", "Avenir Next", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      sans-serif;
+    --font-sans: "Inter Variable", "Inter", "Avenir Next", system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-display: "Fredoka Variable", "Fredoka", "Arial Rounded MT Bold", var(--font-sans);
 
-    /* Nenos Food — laranja #F97316 · amarelo #FBBF24 */
-    --background: 33 100% 98%;
-    --foreground: 24 10% 10%;
+    /* Nenos Food — calor de forno, creme e chocolate. */
+    --background: 34 100% 97%;
+    --foreground: 24 32% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 24 10% 10%;
+    --card: 36 60% 99%;
+    --card-foreground: 24 32% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 24 10% 10%;
+    --popover: 36 60% 99%;
+    --popover-foreground: 24 32% 12%;
 
     /* Laranja principal #F97316 */
     --primary: 25 95% 53%;
@@ -25,36 +26,48 @@
 
     /* Amarelo da marca #FBBF24 */
     --secondary: 43 96% 56%;
-    --secondary-foreground: 24 10% 10%;
+    --secondary-foreground: 24 36% 14%;
 
-    --muted: 34 40% 94%;
-    --muted-foreground: 25 5% 45%;
+    --muted: 33 42% 93%;
+    --muted-foreground: 25 13% 42%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 24 10% 10%;
+    --accent: 29 100% 91%;
+    --accent-foreground: 24 72% 35%;
 
     --gold: 43 96% 56%;
-    --gold-foreground: 24 10% 10%;
+    --gold-foreground: 24 36% 14%;
+
+    --brand-cream: 34 100% 97%;
+    --brand-surface: 36 60% 99%;
+    --brand-ink: 24 32% 12%;
+    --brand-cocoa: 22 49% 22%;
+    --brand-coral: 12 88% 57%;
+    --brand-leaf: 142 48% 35%;
 
     --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 34 30% 90%;
-    --input: 34 30% 90%;
+    --border: 31 35% 87%;
+    --input: 31 35% 87%;
     --ring: 25 95% 53%;
 
-    --radius: 0.875rem;
+    --radius: 1rem;
+    --radius-display: 1.75rem;
+
+    --shadow-card: 0 12px 35px -22px hsl(24 32% 12% / 0.3);
+    --shadow-card-hover: 0 22px 50px -24px hsl(25 95% 45% / 0.38);
+    --shadow-cta: 0 12px 28px -12px hsl(25 95% 48% / 0.6);
   }
 
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 95%;
+    --background: 24 20% 8%;
+    --foreground: 34 45% 95%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 24 17% 12%;
+    --card-foreground: 34 45% 95%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 24 17% 12%;
+    --popover-foreground: 34 45% 95%;
 
     --primary: 25 95% 58%;
     --primary-foreground: 0 0% 100%;
@@ -62,11 +75,11 @@
     --secondary: 43 96% 56%;
     --secondary-foreground: 24 10% 10%;
 
-    --muted: 24 10% 18%;
-    --muted-foreground: 25 5% 60%;
+    --muted: 24 14% 18%;
+    --muted-foreground: 31 15% 65%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 24 10% 10%;
+    --accent: 24 28% 19%;
+    --accent-foreground: 31 95% 72%;
 
     --gold: 43 96% 56%;
     --gold-foreground: 24 10% 10%;
@@ -74,9 +87,20 @@
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 24 10% 22%;
-    --input: 24 10% 22%;
+    --brand-cream: 24 20% 8%;
+    --brand-surface: 24 17% 12%;
+    --brand-ink: 34 45% 95%;
+    --brand-cocoa: 28 33% 76%;
+    --brand-coral: 12 88% 62%;
+    --brand-leaf: 142 45% 48%;
+
+    --border: 24 14% 23%;
+    --input: 24 14% 23%;
     --ring: 25 95% 58%;
+
+    --shadow-card: 0 16px 38px -22px hsl(0 0% 0% / 0.75);
+    --shadow-card-hover: 0 24px 55px -24px hsl(25 95% 50% / 0.34);
+    --shadow-cta: 0 12px 30px -12px hsl(25 95% 50% / 0.7);
   }
 }
 
@@ -88,6 +112,20 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     letter-spacing: -0.01em;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    font-variation-settings: "wdth" 100;
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary) / 0.85);
   }
 
   /* Foco acessível */
@@ -129,21 +167,23 @@
   }
 
   .bg-warm {
-    background-color: #FFF9F2;
+    background-color: hsl(var(--brand-cream));
   }
 
   /* Gradientes */
   .nenos-gradient {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    background: linear-gradient(135deg, #ff8a2a 0%, #f97316 45%, #e6510a 100%);
   }
   .nenos-gradient-yellow {
     background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
   }
   .nenos-gradient-diagonal {
-    background: linear-gradient(135deg, #F97316 0%, #FBBF24 100%);
+    background: linear-gradient(135deg, #f97316 0%, #ff9635 48%, #fbbf24 100%);
   }
   .nenos-gradient-soft {
-    background: linear-gradient(180deg, #FFF9F2 0%, #FFEDD5 40%, #FFF9F2 100%);
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--secondary) / 0.2), transparent 34%),
+      linear-gradient(180deg, hsl(var(--brand-surface)) 0%, hsl(var(--accent)) 48%, hsl(var(--background)) 100%);
   }
 
   .bg-nenos-gradient {
@@ -151,7 +191,7 @@
   }
 
   .shadow-orange {
-    @apply shadow-lg shadow-primary/25;
+    box-shadow: var(--shadow-cta);
   }
 
   .shadow-orange-lg {
@@ -160,7 +200,28 @@
 
   /* Sombra premium para cards elevados (restaurantes, produtos, hero) */
   .shadow-nenos-elevated {
-    box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.28);
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-nenos-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .surface-nenos {
+    @apply border border-border/80 bg-card text-card-foreground;
+    box-shadow: var(--shadow-card);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .text-brand-ink {
+    color: hsl(var(--brand-ink));
+  }
+
+  .bg-brand-cream {
+    background-color: hsl(var(--brand-cream));
   }
 
   /* Scrollbar oculta (para carrosséis) */

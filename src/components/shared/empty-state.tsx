@@ -2,10 +2,13 @@ import type { LucideIcon } from "lucide-react";
 import { PackageSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BrandMascot, type MascotMotion, type MascotPose } from "@/components/shared/brand-mascot";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
   emoji?: string;
+  mascot?: MascotPose;
+  mascotMotion?: MascotMotion;
   title: string;
   description?: string;
   action?: {
@@ -24,6 +27,8 @@ interface EmptyStateProps {
 export function EmptyState({
   icon: Icon = PackageSearch,
   emoji,
+  mascot,
+  mascotMotion = "float",
   title,
   description,
   action,
@@ -46,8 +51,15 @@ export function EmptyState({
         className
       )}
     >
-      {/* Ícone ou emoji */}
-      {emoji ? (
+      {/* Mascote, ícone ou emoji */}
+      {mascot ? (
+        <BrandMascot
+          pose={mascot}
+          motion={mascotMotion}
+          size={size === "lg" ? "lg" : size === "sm" ? "sm" : "md"}
+          decorative
+        />
+      ) : emoji ? (
         <span className={cn(s.emoji, "leading-none select-none")}>{emoji}</span>
       ) : (
         <div className="flex items-center justify-center rounded-2xl bg-muted p-4">
@@ -57,7 +69,7 @@ export function EmptyState({
 
       {/* Texto */}
       <div className="space-y-1.5 max-w-xs">
-        <p className={cn("font-semibold text-foreground", s.title)}>{title}</p>
+        <p className={cn("font-display font-semibold text-foreground", s.title)}>{title}</p>
         {description && (
           <p className={cn("text-muted-foreground", s.desc)}>{description}</p>
         )}
@@ -68,7 +80,7 @@ export function EmptyState({
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           {action && (
             <Button
-              variant={action.variant ?? "default"}
+              variant={action.variant ?? "nenos"}
               onClick={action.onClick}
               size="sm"
             >

@@ -308,6 +308,14 @@ export const mascotFloat = {
   transition: { duration: 2.6, repeat: Infinity, ease: "easeInOut" as const },
 };
 
+export const mascotMotion = {
+  float: "animate-nenos-mascot-float",
+  wave: "animate-nenos-mascot-wave",
+  ride: "animate-nenos-mascot-ride",
+  celebrate: "animate-nenos-mascot-celebrate",
+  still: "",
+} as const;
+
 export const motionTokens = {
   duration: {
     fade: 260,
@@ -353,6 +361,15 @@ export const motionClass = {
   promoSlide: "animate-nenos-promo-slide",
   sidebarActive: "animate-nenos-sidebar-active",
   routeDash: "animate-nenos-route-dash",
+  mascotFloat: "animate-nenos-mascot-float",
+  mascotWave: "animate-nenos-mascot-wave",
+  mascotRide: "animate-nenos-mascot-ride",
+  mascotCelebrate: "animate-nenos-mascot-celebrate",
+  statusArrive: "animate-nenos-status-arrive",
+  imageReveal: "animate-nenos-image-reveal",
+  interactive: "nenos-interactive",
+  ctaSheen: "nenos-cta-sheen",
+  focusRing: "nenos-focus-ring",
   hoverLift: "hover-nenos-lift",
   hoverSoft: "hover-nenos-soft",
   staggerContainer: "stagger-children",
@@ -408,12 +425,12 @@ export function triggerMotionPulse(
 
 /** Classes padrão de componentes Nenos */
 export const nenosClass = {
-  card: "rounded-3xl border border-orange-100 bg-white shadow-sm transition-all duration-200 hover-nenos-lift",
+  card: "rounded-3xl border border-border/80 bg-card shadow-nenos-elevated transition-all duration-200 hover-nenos-lift",
   buttonPrimary:
-    "rounded-full bg-gradient-to-r from-[#F97316] to-[#FBBF24] px-5 py-3 font-bold text-white shadow-orange active:scale-95 transition-transform",
+    "nenos-interactive nenos-focus-ring nenos-cta-sheen rounded-full bg-gradient-to-r from-[#F97316] via-[#FF8A2A] to-[#FBBF24] px-5 py-3 font-bold text-white shadow-orange",
   buttonSecondary:
-    "rounded-full border border-orange-200 bg-white px-5 py-3 font-semibold text-[#EA580C] hover:bg-orange-50 transition-colors",
-  skeleton: "animate-nenos-shimmer rounded-2xl bg-orange-50",
+    "nenos-interactive nenos-focus-ring rounded-full border border-primary/25 bg-card px-5 py-3 font-semibold text-primary hover:bg-accent",
+  skeleton: "animate-nenos-shimmer rounded-2xl bg-muted",
   routeDash: "animate-nenos-route-dash",
 } as const;
 

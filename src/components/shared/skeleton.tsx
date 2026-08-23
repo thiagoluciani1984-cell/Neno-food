@@ -14,7 +14,7 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
 
 export function RestaurantCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
       <Skeleton className="h-36 w-full rounded-none" />
       <div className="space-y-3 p-4">
         <Skeleton className="h-4 w-3/4" />
@@ -30,7 +30,7 @@ export function RestaurantCardSkeleton() {
 
 export function ProductCardSkeleton() {
   return (
-    <div className="flex gap-3 rounded-xl border bg-white p-3">
+    <div className="flex gap-3 rounded-xl border bg-card p-3">
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
@@ -44,7 +44,7 @@ export function ProductCardSkeleton() {
 
 export function OrderCardSkeleton() {
   return (
-    <div className="rounded-xl border bg-white p-4 space-y-3">
+    <div className="rounded-xl border bg-card p-4 space-y-3">
       <div className="flex justify-between">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-5 w-20 rounded-full" />
@@ -60,7 +60,7 @@ export function OrderCardSkeleton() {
 
 export function PostCardSkeleton() {
   return (
-    <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+    <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
       <div className="flex items-center gap-3 p-4">
         <Skeleton className="h-10 w-10 rounded-full" />
         <div className="space-y-1.5 flex-1">
@@ -84,7 +84,7 @@ export function PostCardSkeleton() {
 
 export function DashboardStatSkeleton() {
   return (
-    <div className="rounded-xl border bg-white p-5 space-y-3">
+    <div className="rounded-xl border bg-card p-5 space-y-3">
       <div className="flex justify-between">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-8 w-8 rounded-lg" />
