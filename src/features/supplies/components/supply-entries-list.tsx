@@ -33,11 +33,17 @@ export function SupplyEntriesList({
   items,
   isMasterAdmin,
   viewerProfileId,
+  showBatchControl,
+  allowDelete = true,
 }: {
   entries: SupplyEntry[];
   items: SupplyItem[];
   isMasterAdmin: boolean;
   viewerProfileId: string | null;
+  /** Painel de "fechar lote" — some por padrão pra listas de fora do próprio restaurante (ex: aprovações do parceiro). */
+  showBatchControl?: boolean;
+  /** Excluir só faz sentido pro dono do lançamento — listas do parceiro não devem oferecer essa opção. */
+  allowDelete?: boolean;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
@@ -97,9 +103,11 @@ export function SupplyEntriesList({
     else toast.error(res.error);
   }
 
+  const canCloseBatch = showBatchControl ?? isMasterAdmin;
+
   return (
     <div className="space-y-4">
-      {isMasterAdmin && (
+      {canCloseBatch && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
@@ -171,7 +179,7 @@ export function SupplyEntriesList({
                     </Button>
                   </>
                 )}
-                {entry.status === "pending" && (
+                {entry.status === "pending" && allowDelete && (
                   <Button
                     size="icon"
                     variant="ghost"

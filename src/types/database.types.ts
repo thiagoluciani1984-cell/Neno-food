@@ -114,6 +114,8 @@ export interface Restaurant {
   theme_secondary: string | null;
   created_at: string;
   updated_at: string;
+  // Campo de 0049 ↓
+  partner_restaurant_id: string | null;
 }
 
 export interface RestaurantSettings {

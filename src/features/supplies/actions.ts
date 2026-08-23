@@ -170,13 +170,25 @@ async function setSupplyEntryStatus(
 
   if (!entry) return { ok: false, error: "Lançamento não encontrado." };
 
-  // Quem lançou não aprova o próprio lançamento — o outro lado do
-  // restaurante confirma. master_admin sempre pode, como reforço.
+  // Quem lançou não aprova o próprio lançamento — o outro lado do mesmo
+  // restaurante confirma, OU o restaurante PARCEIRO (quem recebeu o item)
+  // confirma. master_admin sempre pode, como reforço.
   const isMasterAdmin = profile.role === "master_admin";
   const isSameRestaurant = profile.restaurant_id === entry.restaurant_id;
   const isOwnEntry = entry.created_by === profile.id;
-  if (!isMasterAdmin && !(isSameRestaurant && !isOwnEntry)) {
-    return { ok: false, error: "Sem permissão — só quem não lançou este item pode aprovar." };
+
+  let isPartnerRestaurant = false;
+  if (!isMasterAdmin && !isSameRestaurant && profile.restaurant_id) {
+    const { data: myRestaurant } = await supabase
+      .from("restaurants")
+      .select("partner_restaurant_id")
+      .eq("id", profile.restaurant_id)
+      .maybeSingle<{ partner_restaurant_id: string | null }>();
+    isPartnerRestaurant = myRestaurant?.partner_restaurant_id === entry.restaurant_id;
+  }
+
+  if (!isMasterAdmin && !(isSameRestaurant && !isOwnEntry) && !isPartnerRestaurant) {
+    return { ok: false, error: "Sem permissão — só quem não lançou este item, ou o restaurante parceiro, pode aprovar." };
   }
 
   const update: Record<string, unknown> = { status, approved_by: profile.id };
