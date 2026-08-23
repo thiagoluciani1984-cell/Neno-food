@@ -631,3 +631,38 @@ export async function updateOrderStatusAction(
   revalidatePath("/dashboard/orders");
   return { ok: true };
 }
+
+/**
+ * Pede a reimpressão da comanda de um pedido. O painel não consegue
+ * acionar o agente local diretamente — só grava o pedido na fila; o
+ * agente (que já fica de pé monitorando pedidos novos) confere essa fila
+ * periodicamente e imprime sozinho. Funciona de qualquer dispositivo,
+ * não só do computador onde o agente está rodando.
+ */
+export async function requestOrderPrintAction(
+  orderId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sessão expirada. Faça login novamente." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("restaurant_id")
+    .eq("id", orderId)
+    .maybeSingle<{ restaurant_id: string }>();
+  if (!order) return { ok: false, error: "Pedido não encontrado." };
+
+  const { error } = await supabase.from("order_print_requests").insert({
+    restaurant_id: order.restaurant_id,
+    order_id: orderId,
+    requested_by: user.id,
+  });
+
+  if (error) return { ok: false, error: "Falha ao pedir reimpressão. Tente novamente." };
+
+  return { ok: true };
+}

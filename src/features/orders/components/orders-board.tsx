@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Clock, Bike, ShoppingBag } from "lucide-react";
+import { Clock, Bike, ShoppingBag, Printer, Loader2 } from "lucide-react";
 import { createClient, getRealtimeAuthReady } from "@/infra/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import {
   ORDER_STATUS_COLOR,
   nextStatuses,
 } from "@/core/domain/value-objects/order-status";
-import { updateOrderStatusAction } from "@/features/orders/actions";
+import { updateOrderStatusAction, requestOrderPrintAction } from "@/features/orders/actions";
 import { PrepCountdownBadge } from "@/features/orders/components/prep-countdown-badge";
 import { ElapsedTimeBadge } from "@/features/orders/components/elapsed-time-badge";
 import { PaymentInfoBadge } from "@/features/orders/components/payment-info-badge";
@@ -152,6 +152,16 @@ export function OrdersBoard({
     if (!res.ok) toast.error(res.error ?? "Erro ao atualizar.");
   }
 
+  const [printingId, setPrintingId] = useState<string | null>(null);
+
+  async function reprint(order: OrderWithItems) {
+    setPrintingId(order.id);
+    const res = await requestOrderPrintAction(order.id);
+    setPrintingId(null);
+    if (res.ok) toast.success(`Reimpressão do pedido #${order.order_number} pedida!`);
+    else toast.error(res.error);
+  }
+
   return (
     <div className="grid auto-cols-[minmax(280px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-4">
       {COLUMNS.map((col) => {
@@ -254,6 +264,19 @@ export function OrdersBoard({
                           {ORDER_STATUS_LABEL[ns]}
                         </Button>
                       ))}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={printingId === order.id}
+                        onClick={() => void reprint(order)}
+                      >
+                        {printingId === order.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="mr-2 h-4 w-4" />
+                        )}
+                        Reimprimir
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

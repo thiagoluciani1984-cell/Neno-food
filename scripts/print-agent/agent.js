@@ -238,6 +238,46 @@ async function printClosedBatch(supabase, config, restaurantId, restaurantName, 
   }
 }
 
+/** Confere a fila de reimpressão de comanda (gravada pelo painel web, botão "Reimprimir") e imprime os pendentes. */
+async function checkOrderPrintRequests(supabase, restaurantId, restaurantName, config) {
+  const { data: requests, error } = await supabase
+    .from("order_print_requests")
+    .select("id, order_id")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "pending")
+    .order("requested_at", { ascending: true });
+
+  if (error) {
+    log(`Erro ao buscar pedidos de reimpressão: ${error.message}`);
+    return;
+  }
+  if (!requests || requests.length === 0) return;
+
+  for (const request of requests) {
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("*, order_items(*, order_item_options(*))")
+      .eq("id", request.order_id)
+      .single();
+
+    let update;
+    if (orderError || !order) {
+      update = { status: "failed", error: orderError?.message ?? "Pedido não encontrado." };
+    } else {
+      try {
+        log(`Reimprimindo pedido #${order.order_number}...`);
+        const receipt = buildOrderReceipt(order, restaurantName);
+        await printRaw(receipt, config.printerShareName);
+        log(`Pedido #${order.order_number} reimpresso.`);
+        update = { status: "printed", printed_at: new Date().toISOString() };
+      } catch (err) {
+        update = { status: "failed", error: err.message };
+      }
+    }
+    await supabase.from("order_print_requests").update(update).eq("id", request.id);
+  }
+}
+
 /** Confere a fila de pedidos de impressão de lote (gravados pelo painel web) e imprime os pendentes. */
 async function checkPrintRequests(supabase, restaurantId, restaurantName, config) {
   const { data: requests, error } = await supabase
@@ -384,6 +424,7 @@ async function main() {
 
   async function tick() {
     await checkNewOrders();
+    await checkOrderPrintRequests(supabase, profile.restaurant_id, restaurantName, config);
     await checkPrintRequests(supabase, profile.restaurant_id, restaurantName, config);
   }
 
