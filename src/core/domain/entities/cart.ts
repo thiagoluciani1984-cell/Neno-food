@@ -7,6 +7,8 @@ export interface CartItemOption {
   optionItemName: string;
   unitPriceCents: number;
   quantity: number;
+  /** "max_price" = opção substitui o preço base pela mais cara do grupo (ex: pizza meio a meio), em vez de somar. */
+  pricingMode?: "sum" | "max_price";
 }
 
 export interface CartItem {
@@ -43,11 +45,33 @@ export function effectivePriceCents(
   return product.promo_price_cents ?? product.price_cents;
 }
 
+/**
+ * Preço base + opções "sum" somadas — exceto grupos "max_price" (ex: sabores
+ * de pizza meio a meio), que SUBSTITUEM o preço base pelo preço da opção
+ * mais cara escolhida no grupo, em vez de somar. Mesma regra usada no
+ * recálculo autoritativo do servidor (resolveCheckoutItemOptions).
+ */
 export function cartItemUnitPriceCents(
   basePriceCents: number,
   options: CartItemOption[] = []
 ): number {
-  return basePriceCents + optionsTotalCents(options);
+  let sumAdditionsCents = 0;
+  const maxByGroup = new Map<string, number>();
+
+  for (const o of options) {
+    if (o.pricingMode === "max_price") {
+      maxByGroup.set(o.optionId, Math.max(maxByGroup.get(o.optionId) ?? 0, o.unitPriceCents));
+    } else {
+      sumAdditionsCents += o.unitPriceCents * o.quantity;
+    }
+  }
+
+  let maxPriceOverrideCents: number | null = null;
+  for (const groupMaxCents of maxByGroup.values()) {
+    maxPriceOverrideCents = Math.max(maxPriceOverrideCents ?? 0, groupMaxCents);
+  }
+
+  return (maxPriceOverrideCents ?? basePriceCents) + sumAdditionsCents;
 }
 
 export function lineTotalCents(item: CartItem): number {

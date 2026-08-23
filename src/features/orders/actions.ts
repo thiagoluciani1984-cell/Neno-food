@@ -202,13 +202,14 @@ export async function createOrderAction(
 
       const baseUnit = p.promo_price_cents ?? p.price_cents;
       const groups = optionGroupsByProduct.get(item.productId) ?? [];
-      const { unitOptionsCents, snapshots } = resolveCheckoutItemOptions({
+      const { unitPriceCents, snapshots } = resolveCheckoutItemOptions({
         productName: p.name,
+        basePriceCents: baseUnit,
         groups,
         selected: item.options ?? [],
       });
 
-      const unit = baseUnit + unitOptionsCents;
+      const unit = unitPriceCents;
       const itemTotal = unit * item.quantity;
       subtotal += itemTotal;
       orderItems.push({

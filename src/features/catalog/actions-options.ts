@@ -26,11 +26,12 @@ async function assertOwnsProduct(productId: string): Promise<{ restaurantId: str
 // ─── Option groups ─────────────────────────────────────────────────────────
 
 const groupSchema = z.object({
-  name:        z.string().min(1, "Informe o nome do grupo"),
-  type:        z.enum(["single", "multiple"]),
-  is_required: z.coerce.boolean(),
-  min_qty:     z.coerce.number().int().min(0),
-  max_qty:     z.coerce.number().int().min(1),
+  name:          z.string().min(1, "Informe o nome do grupo"),
+  type:          z.enum(["single", "multiple"]),
+  is_required:   z.coerce.boolean(),
+  min_qty:       z.coerce.number().int().min(0),
+  max_qty:       z.coerce.number().int().min(1),
+  pricing_mode:  z.enum(["sum", "max_price"]).default("sum"),
 });
 
 export async function saveOptionGroupAction(
@@ -42,11 +43,12 @@ export async function saveOptionGroupAction(
   if ("error" in auth) return { ok: false, error: auth.error };
 
   const parsed = groupSchema.safeParse({
-    name:        formData.get("name"),
-    type:        formData.get("type"),
-    is_required: formData.get("is_required") === "true",
-    min_qty:     formData.get("min_qty"),
-    max_qty:     formData.get("max_qty"),
+    name:          formData.get("name"),
+    type:          formData.get("type"),
+    is_required:   formData.get("is_required") === "true",
+    min_qty:       formData.get("min_qty"),
+    max_qty:       formData.get("max_qty"),
+    pricing_mode:  formData.get("pricing_mode") || "sum",
   });
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0]?.message ?? "Inválido" };
 

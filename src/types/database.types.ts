@@ -54,6 +54,9 @@ export type RefundStatus = "requested" | "approved" | "rejected" | "processed";
 
 export type OptionType = "single" | "multiple";
 
+// Campo de 0051 ↓
+export type OptionPricingMode = "sum" | "max_price";
+
 export type AuditAction =
   | "create"
   | "update"
@@ -244,6 +247,8 @@ export interface ProductOption {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  // Campo de 0051 ↓
+  pricing_mode: OptionPricingMode;
 }
 
 export interface ProductOptionItem {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computeCouponDiscountCents } from "./cart";
+import { computeCouponDiscountCents, cartItemUnitPriceCents } from "./cart";
+import type { CartItemOption } from "./cart";
 
 describe("computeCouponDiscountCents", () => {
   it("aplica desconto percentual sobre o subtotal", () => {
@@ -59,5 +60,31 @@ describe("computeCouponDiscountCents", () => {
       deliveryFeeCents: 0,
     });
     expect(discount).toBe(0);
+  });
+});
+
+describe("cartItemUnitPriceCents", () => {
+  it("pizza meio a meio: preço final é o do sabor mais caro, substituindo o preço base", () => {
+    const options: CartItemOption[] = [
+      { optionId: "sabores", optionItemId: "calabresa", optionName: "Sabores", optionItemName: "Calabresa", unitPriceCents: 4000, quantity: 1, pricingMode: "max_price" },
+      { optionId: "sabores", optionItemId: "portuguesa", optionName: "Sabores", optionItemName: "Portuguesa", unitPriceCents: 4990, quantity: 1, pricingMode: "max_price" },
+    ];
+    expect(cartItemUnitPriceCents(1, options)).toBe(4990);
+  });
+
+  it("grupo max_price combina com um grupo 'sum' separado (soma normalmente por cima)", () => {
+    const options: CartItemOption[] = [
+      { optionId: "sabores", optionItemId: "calabresa", optionName: "Sabores", optionItemName: "Calabresa", unitPriceCents: 4000, quantity: 1, pricingMode: "max_price" },
+      { optionId: "sabores", optionItemId: "portuguesa", optionName: "Sabores", optionItemName: "Portuguesa", unitPriceCents: 4990, quantity: 1, pricingMode: "max_price" },
+      { optionId: "borda", optionItemId: "catupiry", optionName: "Borda", optionItemName: "Borda recheada", unitPriceCents: 800, quantity: 1, pricingMode: "sum" },
+    ];
+    expect(cartItemUnitPriceCents(1, options)).toBe(4990 + 800);
+  });
+
+  it("sem pricingMode definido, soma normalmente ao preço base (sem regressão)", () => {
+    const options: CartItemOption[] = [
+      { optionId: "extras", optionItemId: "bacon", optionName: "Extras", optionItemName: "Bacon extra", unitPriceCents: 500, quantity: 2 },
+    ];
+    expect(cartItemUnitPriceCents(2500, options)).toBe(2500 + 500 * 2);
   });
 });

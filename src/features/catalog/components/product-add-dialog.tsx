@@ -56,6 +56,7 @@ function buildSnapshots(
         optionItemName: optionItem.name,
         unitPriceCents: optionItem.price_cents,
         quantity,
+        pricingMode: group.pricing_mode,
       });
     }
   }
@@ -168,6 +169,24 @@ function ProductAddDialogBody({
     }));
   }
 
+  function toggleMaxPrice(group: OptionGroupWithItems, optionItemId: string) {
+    setSelected((prev) => {
+      const current = { ...(prev[group.id] ?? {}) };
+      if ((current[optionItemId] ?? 0) > 0) {
+        delete current[optionItemId];
+        return { ...prev, [group.id]: current };
+      }
+
+      if (groupTotal(group.id, prev) + 1 > group.max_qty) {
+        toast.error(`Escolha até ${group.max_qty} em ${group.name}.`);
+        return prev;
+      }
+
+      current[optionItemId] = 1;
+      return { ...prev, [group.id]: current };
+    });
+  }
+
   function adjustMultiple(
     group: OptionGroupWithItems,
     optionItemId: string,
@@ -258,75 +277,86 @@ function ProductAddDialogBody({
               Carregando opções...
             </div>
           ) : (
-            groups.map((group) => (
-              <div key={group.id} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-semibold">{group.name}</Label>
-                  {group.is_required && (
-                    <span className="text-xs text-destructive">Obrigatório</span>
+            groups.map((group) => {
+              const isMaxPrice = group.pricing_mode === "max_price";
+              return (
+                <div key={group.id} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">{group.name}</Label>
+                    {group.is_required && (
+                      <span className="text-xs text-destructive">Obrigatório</span>
+                    )}
+                  </div>
+                  {isMaxPrice && (
+                    <p className="text-xs text-muted-foreground">
+                      Escolha até {group.max_qty} — o preço final é o do sabor mais caro escolhido.
+                    </p>
                   )}
-                </div>
 
-                <div className="space-y-2">
-                  {group.product_option_items.map((item) => {
-                    const qty = selected[group.id]?.[item.id] ?? 0;
-                    const isSingle = group.type === "single";
-                    const active = isSingle ? qty > 0 : qty > 0;
+                  <div className="space-y-2">
+                    {group.product_option_items.map((item) => {
+                      const qty = selected[group.id]?.[item.id] ?? 0;
+                      const isSingle = group.type === "single";
+                      const isStepper = !isSingle && !isMaxPrice;
+                      const active = qty > 0;
 
-                    return (
-                      <div
-                        key={item.id}
-                        className={[
-                          "flex items-center justify-between rounded-lg border px-3 py-2",
-                          active ? "border-primary bg-primary/5" : "",
-                        ].join(" ")}
-                      >
-                        <button
-                          type="button"
-                          className="flex-1 text-left"
-                          onClick={() =>
-                            isSingle
-                              ? toggleSingle(group, item.id)
-                              : adjustMultiple(group, item.id, qty > 0 ? 0 : 1)
-                          }
+                      return (
+                        <div
+                          key={item.id}
+                          className={[
+                            "flex items-center justify-between rounded-lg border px-3 py-2",
+                            active ? "border-primary bg-primary/5" : "",
+                          ].join(" ")}
                         >
-                          <span className="text-sm font-medium">{item.name}</span>
-                          {item.price_cents > 0 && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              +{formatBRL(item.price_cents)}
-                            </span>
-                          )}
-                        </button>
+                          <button
+                            type="button"
+                            className="flex-1 text-left"
+                            onClick={() =>
+                              isSingle
+                                ? toggleSingle(group, item.id)
+                                : isMaxPrice
+                                  ? toggleMaxPrice(group, item.id)
+                                  : adjustMultiple(group, item.id, qty > 0 ? 0 : 1)
+                            }
+                          >
+                            <span className="text-sm font-medium">{item.name}</span>
+                            {item.price_cents > 0 && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {isMaxPrice ? formatBRL(item.price_cents) : `+${formatBRL(item.price_cents)}`}
+                              </span>
+                            )}
+                          </button>
 
-                        {!isSingle && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => adjustMultiple(group, item.id, -1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-4 text-center text-sm">{qty}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => adjustMultiple(group, item.id, 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          {isStepper && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => adjustMultiple(group, item.id, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-4 text-center text-sm">{qty}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => adjustMultiple(group, item.id, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
 
           <div className="space-y-1.5">

@@ -5,7 +5,7 @@ import { fetchProductOptionsAction } from "../actions-options-fetch";
 import { toast } from "sonner";
 import {
   Plus, Trash2, ChevronDown, ChevronUp, Loader2,
-  ListChecks, ToggleLeft
+  ListChecks, ToggleLeft, Pizza
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,7 @@ function GroupForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [type, setType] = useState<"single" | "multiple">(group?.type ?? "single");
+  const [pricingMode, setPricingMode] = useState<"sum" | "max_price">(group?.pricing_mode ?? "sum");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -144,6 +145,28 @@ function GroupForm({
         )}
       </div>
 
+      {type === "multiple" && (
+        <div className="space-y-1.5">
+          <Label>Preço</Label>
+          <div className="flex gap-2">
+            <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <input type="radio" name="pricing_mode" value="sum" defaultChecked={pricingMode === "sum"} className="accent-primary" onChange={() => setPricingMode("sum")} />
+              <Plus className="h-3.5 w-3.5" /> Soma os preços
+            </label>
+            <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <input type="radio" name="pricing_mode" value="max_price" defaultChecked={pricingMode === "max_price"} className="accent-primary" onChange={() => setPricingMode("max_price")} />
+              <Pizza className="h-3.5 w-3.5" /> Cobra o mais caro
+            </label>
+          </div>
+          {pricingMode === "max_price" && (
+            <p className="text-xs text-muted-foreground">
+              Uso típico: pizza meio a meio. O preço final vira o preço do item mais caro escolhido nesse grupo — não soma. Cadastre cada sabor com seu próprio preço e marque Mín/Máx como 2.
+            </p>
+          )}
+        </div>
+      )}
+      {type === "single" && <input type="hidden" name="pricing_mode" value="sum" />}
+
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (group ? "Salvar" : "Criar grupo")}
@@ -190,6 +213,9 @@ function OptionGroup({
           <Badge variant={group.type === "single" ? "info" : "warning"} className="text-[10px] px-1.5">
             {group.type === "single" ? "Único" : "Múltiplo"}
           </Badge>
+          {group.pricing_mode === "max_price" && (
+            <Badge variant="secondary" className="text-[10px] px-1.5">Cobra o mais caro</Badge>
+          )}
           {group.is_required && <Badge variant="destructive" className="text-[10px] px-1.5">Obrigatório</Badge>}
         </div>
         <div className="flex items-center gap-1">
@@ -211,7 +237,14 @@ function OptionGroup({
       {expanded && (
         <div className="divide-y">
           {group.product_option_items.map((item) => (
-            <OptionItemRow key={item.id} item={item} productId={productId} optionId={group.id} onRefresh={onRefresh} />
+            <OptionItemRow
+              key={item.id}
+              item={item}
+              productId={productId}
+              optionId={group.id}
+              pricingMode={group.pricing_mode}
+              onRefresh={onRefresh}
+            />
           ))}
 
           <div className="px-4 py-2">
@@ -241,11 +274,13 @@ function OptionItemRow({
   item,
   productId,
   optionId,
+  pricingMode,
   onRefresh,
 }: {
   item: ProductOptionItem;
   productId: string;
   optionId: string;
+  pricingMode: "sum" | "max_price";
   onRefresh: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -278,7 +313,7 @@ function OptionItemRow({
         <span className="text-sm">{item.name}</span>
         {item.price_cents > 0 && (
           <span className="text-xs font-medium text-primary">
-            +R$ {centsToReais(item.price_cents).toFixed(2).replace(".", ",")}
+            {pricingMode === "max_price" ? "" : "+"}R$ {centsToReais(item.price_cents).toFixed(2).replace(".", ",")}
           </span>
         )}
         {item.price_cents === 0 && (

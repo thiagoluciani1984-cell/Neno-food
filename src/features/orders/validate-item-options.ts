@@ -15,14 +15,21 @@ export interface ResolvedItemOption {
   quantity: number;
 }
 
+/**
+ * Calcula o preço final de um item a partir do preço base do produto e das
+ * opções escolhidas. Grupos "sum" (padrão) somam o preço da opção ao preço
+ * base — ex: borda recheada +R$8. Grupos "max_price" SUBSTITUEM o preço
+ * base pelo preço da opção mais cara escolhida no grupo — ex: pizza meio a
+ * meio, onde o cliente escolhe dois sabores e paga o valor do mais caro.
+ */
 export function resolveCheckoutItemOptions(params: {
   productName: string;
+  basePriceCents: number;
   groups: OptionGroupWithItems[];
   selected: CheckoutItemOptionInput[];
-}): { unitOptionsCents: number; snapshots: ResolvedItemOption[] } {
-  const { productName, groups, selected } = params;
+}): { unitPriceCents: number; snapshots: ResolvedItemOption[] } {
+  const { productName, basePriceCents, groups, selected } = params;
   const snapshots: ResolvedItemOption[] = [];
-  let unitOptionsCents = 0;
 
   const selectedByGroup = new Map<string, CheckoutItemOptionInput[]>();
   for (const entry of selected) {
@@ -43,6 +50,9 @@ export function resolveCheckoutItemOptions(params: {
     selectedByGroup.set(group.id, list);
   }
 
+  let sumAdditionsCents = 0;
+  let maxPriceOverrideCents: number | null = null;
+
   for (const group of groups) {
     const picks = selectedByGroup.get(group.id) ?? [];
     const totalQty = picks.reduce((sum, p) => sum + p.quantity, 0);
@@ -59,12 +69,11 @@ export function resolveCheckoutItemOptions(params: {
       throw new Error(`Escolha apenas uma opção em ${group.name}.`);
     }
 
+    let groupMaxCents = 0;
     for (const pick of picks) {
       const optionItem = group.product_option_items.find(
         (item) => item.id === pick.optionItemId
       )!;
-      const lineCents = optionItem.price_cents * pick.quantity;
-      unitOptionsCents += lineCents;
       snapshots.push({
         option_id: group.id,
         option_item_id: optionItem.id,
@@ -73,8 +82,20 @@ export function resolveCheckoutItemOptions(params: {
         unit_price_cents: optionItem.price_cents,
         quantity: pick.quantity,
       });
+
+      if (group.pricing_mode === "max_price") {
+        groupMaxCents = Math.max(groupMaxCents, optionItem.price_cents);
+      } else {
+        sumAdditionsCents += optionItem.price_cents * pick.quantity;
+      }
+    }
+
+    if (group.pricing_mode === "max_price" && picks.length > 0) {
+      maxPriceOverrideCents = Math.max(maxPriceOverrideCents ?? 0, groupMaxCents);
     }
   }
 
-  return { unitOptionsCents, snapshots };
+  const unitPriceCents = (maxPriceOverrideCents ?? basePriceCents) + sumAdditionsCents;
+
+  return { unitPriceCents, snapshots };
 }
