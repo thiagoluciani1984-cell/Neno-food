@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 /**
@@ -28,5 +29,19 @@ export async function createClient() {
         },
       },
     }
+  );
+}
+
+/**
+ * Cliente Supabase anônimo, sem tocar em `cookies()`. Respeita RLS como o
+ * papel `anon` (sem sessão de usuário) — use só pra dados públicos que não
+ * dependem de quem está logado. Necessário pra funções chamadas dentro de
+ * `unstable_cache`, que não pode usar APIs dinâmicas como `cookies()`.
+ */
+export function createAnonClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
   );
 }

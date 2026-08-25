@@ -1,5 +1,6 @@
 import "server-only";
-import { createClient } from "@/infra/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createClient, createAnonClient } from "@/infra/supabase/server";
 import { PUBLIC_RESTAURANT_SETTINGS_COLUMNS } from "@/features/catalog/queries";
 import type { Product, Restaurant, RestaurantSettings } from "@/types/database.types";
 
@@ -31,8 +32,18 @@ async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<
   }
 }
 
-export async function listActiveRestaurants(): Promise<RestaurantCard[]> {
-  const supabase = await createClient();
+// Cacheada por 30s (next/cache): a listagem pública de restaurantes é a
+// query mais repetida da home e não precisa ser refeita a cada request —
+// usa o cliente anônimo (sem cookies()) porque unstable_cache não aceita
+// APIs dinâmicas dentro da função cacheada.
+export const listActiveRestaurants = unstable_cache(
+  fetchActiveRestaurants,
+  ["marketplace-active-restaurants"],
+  { revalidate: 30, tags: ["marketplace-restaurants"] }
+);
+
+async function fetchActiveRestaurants(): Promise<RestaurantCard[]> {
+  const supabase = createAnonClient();
   const restaurantsController = new AbortController();
   const restaurantsTimeout = setTimeout(
     () => restaurantsController.abort(),
@@ -136,10 +147,16 @@ export async function searchMarketplaceProducts(
   return mapProductHits(data as Array<Record<string, unknown>>);
 }
 
-export async function getFeaturedProducts(
+export const getFeaturedProducts = unstable_cache(
+  fetchFeaturedProducts,
+  ["marketplace-featured-products"],
+  { revalidate: 30, tags: ["marketplace-products"] }
+);
+
+async function fetchFeaturedProducts(
   limit = 8
 ): Promise<MarketplaceProductHit[]> {
-  const supabase = await createClient();
+  const supabase = createAnonClient();
 
   const activeIds = await withTimeout(async (signal) => {
     const { data } = await supabase
