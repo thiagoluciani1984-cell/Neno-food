@@ -13,6 +13,30 @@ const ROUTE_ROLE_GUARD: { prefix: string; roles: string[] }[] = [
   { prefix: "/account",  roles: ["customer", "restaurant", "driver", "master_admin", "staff", "moderator"] },
 ];
 
+// Evita bater em `profiles` a cada navegação: o papel do usuário raramente
+// muda, então cacheamos por poucos minutos num cookie httpOnly amarrado ao
+// user.id atual.
+const ROLE_CACHE_COOKIE = "sb-role-cache";
+const ROLE_CACHE_MAX_AGE_SECONDS = 5 * 60;
+
+function readCachedRole(request: NextRequest, userId: string): string | null {
+  const raw = request.cookies.get(ROLE_CACHE_COOKIE)?.value;
+  if (!raw) return null;
+  const [cachedUserId, cachedRole] = raw.split(":");
+  if (cachedUserId !== userId || !cachedRole) return null;
+  return cachedRole;
+}
+
+function writeCachedRole(response: NextResponse, userId: string, role: string) {
+  response.cookies.set(ROLE_CACHE_COOKIE, `${userId}:${role}`, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: ROLE_CACHE_MAX_AGE_SECONDS,
+  });
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -60,13 +84,27 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    let role = readCachedRole(request, user.id);
 
-    if (!profile || !guard.roles.includes(profile.role)) {
+    if (!role) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      const fetchedRole: string | null = profile?.role ?? null;
+      if (!fetchedRole) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        return NextResponse.redirect(url);
+      }
+
+      role = fetchedRole;
+      writeCachedRole(response, user.id, role);
+    }
+
+    if (!guard.roles.includes(role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);

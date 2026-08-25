@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/infra/supabase/server";
 import { createAdminClient } from "@/infra/supabase/admin";
 import { syncAutoCloseState } from "@/features/settings/auto-close";
@@ -31,7 +32,12 @@ export const PUBLIC_RESTAURANT_SETTINGS_COLUMNS =
  * Carrega o cardápio público de um restaurante pelo slug, agrupando
  * produtos disponíveis por categoria (ordenados).
  */
-export async function getMenuBySlug(slug: string): Promise<MenuData | null> {
+// cache() dedupe: generateMetadata e a page chamam essa função com o mesmo
+// slug no mesmo request — sem isso, cada visita ao cardápio disparava a
+// consulta completa (restaurante + categorias + produtos) duas vezes.
+export const getMenuBySlug = cache(async function getMenuBySlug(
+  slug: string
+): Promise<MenuData | null> {
   const supabase = await createClient();
 
   const { data: restaurant } = await supabase
@@ -83,7 +89,7 @@ export async function getMenuBySlug(slug: string): Promise<MenuData | null> {
     settings: correctedSettings,
     categories: grouped.filter((c) => c.products.length > 0),
   };
-}
+});
 
 /**
  * Lista completa para a gestão (dashboard): inclui itens indisponíveis,
