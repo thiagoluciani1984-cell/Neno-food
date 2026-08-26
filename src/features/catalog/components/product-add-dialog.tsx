@@ -86,6 +86,139 @@ function validateSelection(
   return null;
 }
 
+/** Sabor 1 obrigatório + 2º sabor opcional (meio a meio) — mesmo padrão iFood/99. */
+function FlavorPicker({
+  group,
+  selected,
+  onPick,
+  onClearSecond,
+}: {
+  group: OptionGroupWithItems;
+  selected: SelectedOptions;
+  onPick: (slot: 0 | 1, itemId: string) => void;
+  onClearSecond: () => void;
+}) {
+  const items = group.product_option_items;
+  const pickedIds = Object.keys(selected[group.id] ?? {});
+  const flavor1Id = pickedIds[0];
+  const flavor2Id = pickedIds[1];
+  const [wantsSecond, setWantsSecond] = useState(!!flavor2Id);
+
+  const flavor1 = items.find((i) => i.id === flavor1Id);
+  const flavor2 = items.find((i) => i.id === flavor2Id);
+  const finalPriceCents = flavor2
+    ? Math.max(flavor1?.price_cents ?? 0, flavor2.price_cents)
+    : (flavor1?.price_cents ?? null);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+          Sabor 1
+        </Label>
+        <div className="space-y-1.5">
+          {items.map((item) => (
+            <RadioRow
+              key={item.id}
+              label={item.name}
+              priceCents={item.price_cents}
+              checked={flavor1Id === item.id}
+              onClick={() => onPick(0, item.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {flavor1Id && (
+        <div className="space-y-2 border-t pt-3">
+          <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2">
+            <span className="text-sm font-medium">🍕 Meio a meio — adicionar 2º sabor</span>
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={wantsSecond}
+              onChange={(e) => {
+                if (e.target.checked) setWantsSecond(true);
+                else {
+                  setWantsSecond(false);
+                  onClearSecond();
+                }
+              }}
+            />
+          </label>
+
+          {wantsSecond && (
+            <div>
+              <Label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+                Sabor 2
+              </Label>
+              <div className="space-y-1.5">
+                {items
+                  .filter((item) => item.id !== flavor1Id)
+                  .map((item) => (
+                    <RadioRow
+                      key={item.id}
+                      label={item.name}
+                      priceCents={item.price_cents}
+                      checked={flavor2Id === item.id}
+                      onClick={() => onPick(1, item.id)}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground">
+        {flavor2
+          ? `Meio a meio: o valor final é do sabor mais caro — ${formatBRL(finalPriceCents!)}.`
+          : flavor1
+            ? `Sabor único — ${formatBRL(finalPriceCents!)}. Ative acima para dividir com um 2º sabor.`
+            : "Escolha o sabor 1 para continuar."}
+      </p>
+    </div>
+  );
+}
+
+function RadioRow({
+  label,
+  priceCents,
+  checked,
+  onClick,
+}: {
+  label: string;
+  priceCents: number;
+  checked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors",
+        checked ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+      ].join(" ")}
+    >
+      <span className="flex items-center gap-2 text-sm font-medium">
+        <span
+          className={[
+            "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2",
+            checked ? "border-primary" : "border-muted-foreground/40",
+          ].join(" ")}
+        >
+          {checked && <span className="h-2 w-2 rounded-full bg-primary" />}
+        </span>
+        {label}
+      </span>
+      {priceCents > 0 && (
+        <span className="text-xs text-muted-foreground">{formatBRL(priceCents)}</span>
+      )}
+    </button>
+  );
+}
+
 export function ProductAddDialog({
   product,
   restaurantId,
@@ -187,6 +320,30 @@ function ProductAddDialogBody({
     });
   }
 
+  function pickFlavorSlot(group: OptionGroupWithItems, slot: 0 | 1, optionItemId: string) {
+    setSelected((prev) => {
+      const pickedIds = Object.keys(prev[group.id] ?? {});
+      const next: Record<string, number> = {};
+      if (slot === 0) {
+        next[optionItemId] = 1;
+        if (pickedIds[1] && pickedIds[1] !== optionItemId) next[pickedIds[1]] = 1;
+      } else {
+        if (pickedIds[0]) next[pickedIds[0]] = 1;
+        next[optionItemId] = 1;
+      }
+      return { ...prev, [group.id]: next };
+    });
+  }
+
+  function clearFlavorSlot2(group: OptionGroupWithItems) {
+    setSelected((prev) => {
+      const pickedIds = Object.keys(prev[group.id] ?? {});
+      const next: Record<string, number> = {};
+      if (pickedIds[0]) next[pickedIds[0]] = 1;
+      return { ...prev, [group.id]: next };
+    });
+  }
+
   function adjustMultiple(
     group: OptionGroupWithItems,
     optionItemId: string,
@@ -279,6 +436,27 @@ function ProductAddDialogBody({
           ) : (
             groups.map((group) => {
               const isMaxPrice = group.pricing_mode === "max_price";
+              const isFlavorPicker = isMaxPrice && group.max_qty === 2;
+
+              if (isFlavorPicker) {
+                return (
+                  <div key={group.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-semibold">{group.name}</Label>
+                      {group.is_required && (
+                        <span className="text-xs text-destructive">Obrigatório</span>
+                      )}
+                    </div>
+                    <FlavorPicker
+                      group={group}
+                      selected={selected}
+                      onPick={(slot, itemId) => pickFlavorSlot(group, slot, itemId)}
+                      onClearSecond={() => clearFlavorSlot2(group)}
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <div key={group.id} className="space-y-2">
                   <div className="flex items-center gap-2">
