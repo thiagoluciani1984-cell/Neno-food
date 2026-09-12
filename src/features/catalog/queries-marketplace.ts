@@ -4,6 +4,8 @@ import { createClient, createAnonClient } from "@/infra/supabase/server";
 import { PUBLIC_RESTAURANT_SETTINGS_COLUMNS } from "@/features/catalog/queries";
 import type { Product, Restaurant, RestaurantSettings } from "@/types/database.types";
 
+const ACTIVE_RESTAURANT_SLUG = "lucianis-di-qualita";
+
 export interface RestaurantCard {
   restaurant: Restaurant;
   settings: RestaurantSettings | null;
@@ -57,6 +59,7 @@ async function fetchActiveRestaurants(): Promise<RestaurantCard[]> {
       .from("restaurants")
       .select("*")
       .eq("status", "active")
+      .eq("slug", ACTIVE_RESTAURANT_SLUG)
       .order("created_at")
       .abortSignal(restaurantsController.signal);
 
@@ -117,6 +120,7 @@ export async function searchMarketplaceProducts(
       .from("restaurants")
       .select("id")
       .eq("status", "active")
+      .eq("slug", ACTIVE_RESTAURANT_SLUG)
       .abortSignal(signal);
     return (data ?? []).map((r) => r.id);
   });
@@ -163,6 +167,7 @@ async function fetchFeaturedProducts(
       .from("restaurants")
       .select("id")
       .eq("status", "active")
+      .eq("slug", ACTIVE_RESTAURANT_SLUG)
       .abortSignal(signal);
     return (data ?? []).map((r) => r.id);
   });

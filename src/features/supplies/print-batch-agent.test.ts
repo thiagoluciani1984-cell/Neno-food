@@ -23,7 +23,7 @@ describe("buildSupplyBatchReceipt", () => {
           items: [],
           totalCents: 0,
         },
-        "Point da Pizza"
+        "Luciani's Di Qualità"
       )
     ).not.toThrow();
   });

@@ -43,12 +43,12 @@ const CATEGORIES = [
   {
     label: "Todos",
     filter: null,
-    image: "/menu/point-da-pizza/pizza-mucarela-base.webp",
+    image: "/menu/lucianis/lasanha-5-queijos.webp",
   },
   {
     label: "Pizzas",
     filter: "pizza",
-    image: "/menu/point-da-pizza/pizza-pepperoni-base.webp",
+    image: "/menu/lucianis/parmegiana-file-mignon.webp",
   },
   {
     label: "Massas",
@@ -58,7 +58,7 @@ const CATEGORIES = [
   {
     label: "Combos",
     filter: null,
-    image: "/menu/point-da-pizza/combo-familia-master.webp",
+    image: "/menu/shared/cola.webp",
   },
   {
     label: "Bebidas",
@@ -68,7 +68,7 @@ const CATEGORIES = [
   {
     label: "Doces",
     filter: null,
-    image: "/menu/point-da-pizza/brigadeiro-doce.webp",
+    image: "/menu/lucianis/risoto-tilapia.webp",
   },
 ] as const;
 
@@ -399,12 +399,8 @@ function SectionLink({ href, label }: { href: string; label: string }) {
 }
 
 function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
-  const reduceMotion = useReducedMotion() ?? false;
   const isOpen = settings?.is_open ?? false;
-  const isPoint = restaurant.slug === "poit-da-pizza";
-  const coverUrl = isPoint
-    ? "/menu/point-da-pizza/pizza-pepperoni-base.webp"
-    : restaurant.cover_url;
+  const coverUrl = restaurant.cover_url;
 
   return (
     <Link
@@ -425,14 +421,6 @@ function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
             <UtensilsCrossed className="h-12 w-12 text-white/75" />
           </div>
         )}
-        {isPoint && (
-          <>
-            <span className="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/10 to-orange-400/20" />
-            <span className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white backdrop-blur-md">
-              Forno no ponto
-            </span>
-          </>
-        )}
         <span className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
         <span
           className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold shadow-sm ${
@@ -446,17 +434,17 @@ function PopularRestaurantCard({ restaurant, settings }: RestaurantCard) {
         </span>
         {restaurant.logo_url && (
           <motion.span
-            initial={isPoint && !reduceMotion ? { opacity: 0, scale: 0.72, rotate: -8 } : false}
+            initial={false}
             whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
             viewport={{ once: true, amount: 0.7 }}
             transition={{ duration: 0.55, ease: nenosEase }}
-            className={`absolute -bottom-0 left-3 h-12 w-12 translate-y-1/3 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg ${isPoint ? "ring-4 ring-orange-500/15" : ""}`}
+            className="absolute -bottom-0 left-3 h-12 w-12 translate-y-1/3 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg"
           >
             <Image
               src={restaurant.logo_url}
               alt=""
               fill
-              className={isPoint ? "object-contain p-0.5" : "object-cover"}
+              className="object-cover"
               sizes="48px"
             />
           </motion.span>
@@ -545,12 +533,8 @@ function FeaturedProductCard({ product, restaurant }: MarketplaceProductHit) {
 }
 
 function RestaurantGridCard({ restaurant, settings }: RestaurantCard) {
-  const reduceMotion = useReducedMotion() ?? false;
   const isOpen = settings?.is_open ?? false;
-  const isPoint = restaurant.slug === "poit-da-pizza";
-  const coverUrl = isPoint
-    ? "/menu/point-da-pizza/pizza-pepperoni-base.webp"
-    : restaurant.cover_url;
+  const coverUrl = restaurant.cover_url;
 
   return (
     <Link
@@ -571,15 +555,12 @@ function RestaurantGridCard({ restaurant, settings }: RestaurantCard) {
             <UtensilsCrossed className="h-12 w-12 text-white/70" />
           </div>
         )}
-        {isPoint && (
-          <span className="absolute inset-0 bg-gradient-to-tr from-black/65 via-transparent to-orange-400/20" />
-        )}
         <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-extrabold ${isOpen ? "bg-emerald-500 text-white" : "bg-black/65 text-white"}`}>
           {isOpen ? "Aberto" : "Fechado"}
         </span>
         {restaurant.logo_url && (
           <motion.span
-            initial={isPoint && !reduceMotion ? { opacity: 0, y: 10, scale: 0.78 } : false}
+            initial={false}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true, amount: 0.7 }}
             transition={{ duration: 0.5, ease: nenosEase }}
@@ -589,7 +570,7 @@ function RestaurantGridCard({ restaurant, settings }: RestaurantCard) {
               src={restaurant.logo_url}
               alt=""
               fill
-              className={isPoint ? "object-contain p-0.5" : "object-cover"}
+              className="object-cover"
               sizes="48px"
             />
           </motion.span>

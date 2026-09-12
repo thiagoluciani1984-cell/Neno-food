@@ -16,12 +16,10 @@ export function RestaurantTabs({
   slug,
   active,
   reviewsCount = 0,
-  premiumDark = false,
 }: {
   slug: string;
   active: "cardapio" | "publicacoes" | "avaliacoes";
   reviewsCount?: number;
-  premiumDark?: boolean;
 }) {
   const href = (tab: string) => (tab === "cardapio" ? `/${slug}` : `/${slug}?aba=${tab}`);
 
@@ -29,9 +27,7 @@ export function RestaurantTabs({
     <div
       className={cn(
         "sticky top-16 z-30 border-b backdrop-blur",
-        premiumDark
-          ? "border-white/10 bg-[#171512]/95"
-          : "border-orange-100 bg-white/95"
+        "border-orange-100 bg-white/95"
       )}
     >
       <LayoutGroup>
@@ -47,9 +43,7 @@ export function RestaurantTabs({
                   "relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold transition-colors",
                   isActive
                     ? "text-primary"
-                    : premiumDark
-                      ? "text-white/55 hover:text-white"
-                      : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {isActive && (
@@ -63,7 +57,7 @@ export function RestaurantTabs({
                 <span className="relative z-10">
                   {tab.label}
                   {tab.id === "avaliacoes" && reviewsCount > 0 && (
-                    <span className={cn("ml-0.5 text-xs", premiumDark ? "text-white/45" : "text-muted-foreground")}>
+                    <span className="ml-0.5 text-xs text-muted-foreground">
                       ({reviewsCount})
                     </span>
                   )}
