@@ -57,11 +57,10 @@ export async function getActiveRestaurantId(): Promise<string | null> {
     }
   }
 
-  if (profile?.restaurant_id) return profile.restaurant_id;
+  const activeRestaurantId = await restaurantIdFromSlug(ACTIVE_RESTAURANT_SLUG);
+  if (profile?.restaurant_id === activeRestaurantId) return profile.restaurant_id;
 
-  return restaurantIdFromSlug(
-    process.env.NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG ?? "lucianis-di-qualita"
-  );
+  return activeRestaurantId;
 }
 
 export async function resolveDashboardRestaurantId(
