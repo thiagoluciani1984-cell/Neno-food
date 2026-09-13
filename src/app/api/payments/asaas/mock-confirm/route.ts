@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { confirmMockOrderPayment } from "@/features/orders/sync-payment";
+import { canAccessOrderPayment } from "@/features/orders/queries-payment";
 import { isAsaasDevMock } from "@/lib/payments";
 
 export async function POST(req: NextRequest) {
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest) {
 
   if (!body.orderId) {
     return NextResponse.json({ error: "orderId required" }, { status: 400 });
+  }
+
+  if (!(await canAccessOrderPayment(body.orderId))) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
   const result = await confirmMockOrderPayment(body.orderId);

@@ -10,6 +10,8 @@ import type {
   RestaurantSettings,
 } from "@/types/database.types";
 
+const ACTIVE_RESTAURANT_SLUG = "lucianis-di-qualita";
+
 export interface MenuData {
   restaurant: Restaurant;
   settings: RestaurantSettings | null;
@@ -44,6 +46,7 @@ export const getMenuBySlug = cache(async function getMenuBySlug(
     .from("restaurants")
     .select("*")
     .eq("slug", slug)
+    .eq("slug", ACTIVE_RESTAURANT_SLUG)
     .eq("status", "active")
     .single<Restaurant>();
 

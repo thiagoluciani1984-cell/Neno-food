@@ -160,7 +160,7 @@ function GroupForm({
           </div>
           {pricingMode === "max_price" && (
             <p className="text-xs text-muted-foreground">
-              Uso típico: pizza meio a meio. O preço final vira o preço do item mais caro escolhido nesse grupo — não soma. Cadastre cada sabor com seu próprio preço e marque Mín/Máx como 2.
+              Uso típico: pizza meio a meio. O preço final vira o preço do item mais caro escolhido nesse grupo — não soma. Cadastre cada sabor com seu próprio preço e marque Mín 1 / Máx 2 para permitir 1 sabor ou meio a meio no mesmo produto.
             </p>
           )}
         </div>

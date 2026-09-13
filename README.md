@@ -1,7 +1,7 @@
 # Nenos Food (Di Qualità Food)
 
 Marketplace multi-tenant de **delivery e gestão para restaurantes**.
-Operações ativas: **Luciani's Di Qualità** e **Point da Pizza**.
+Operação ativa: **Luciani's Di Qualità**.
 
 Stack: **Next.js 16 + TypeScript + Tailwind + ShadCN UI** · **Supabase** (PostgreSQL, Auth, RLS, Storage, Realtime) · **Asaas** (PIX online).
 

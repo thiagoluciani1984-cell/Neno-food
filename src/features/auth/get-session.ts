@@ -4,6 +4,8 @@ import { cache } from "react";
 import { createClient } from "@/infra/supabase/server";
 import type { Profile } from "@/types/database.types";
 
+const ACTIVE_RESTAURANT_SLUG = "lucianis-di-qualita";
+
 export const getSession = cache(async () => {
   const supabase = await createClient();
   const {
@@ -22,6 +24,8 @@ export const getSession = cache(async () => {
 });
 
 async function restaurantIdFromSlug(slug: string): Promise<string | null> {
+  if (slug !== ACTIVE_RESTAURANT_SLUG) return null;
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("restaurants")
@@ -53,11 +57,10 @@ export async function getActiveRestaurantId(): Promise<string | null> {
     }
   }
 
-  if (profile?.restaurant_id) return profile.restaurant_id;
+  const activeRestaurantId = await restaurantIdFromSlug(ACTIVE_RESTAURANT_SLUG);
+  if (profile?.restaurant_id === activeRestaurantId) return profile.restaurant_id;
 
-  return restaurantIdFromSlug(
-    process.env.NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG ?? "lucianis-di-qualita"
-  );
+  return activeRestaurantId;
 }
 
 export async function resolveDashboardRestaurantId(
@@ -87,6 +90,7 @@ export async function listDashboardRestaurants(): Promise<
     .from("restaurants")
     .select("id, name, slug")
     .eq("status", "active")
+    .eq("slug", ACTIVE_RESTAURANT_SLUG)
     .order("name");
 
   return data ?? [];

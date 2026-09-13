@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Nenos Food — peça já de Luciani's Di Qualità ou Point da Pizza";
+export const alt = "Nenos Food — peça já de Luciani's Di Qualità";
 
 export default async function Image() {
   const logoBuffer = await readFile(join(process.cwd(), "public/brand/logo.png"));
@@ -59,8 +59,6 @@ export default async function Image() {
           }}
         >
           <span>Luciani&apos;s Di Qualità</span>
-          <span style={{ opacity: 0.6 }}>•</span>
-          <span>Point da Pizza</span>
         </div>
         <div
           style={{

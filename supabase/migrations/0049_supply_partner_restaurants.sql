@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 0049 · Restaurante parceiro de troca de insumos: dois restaurantes
---        (ex: Lucianis e Point da Pizza) pegam insumos um do outro.
+--        parceiros podem trocar insumos entre si.
 --        Quem LANÇA é quem forneceu (o lote/relatório fica com ele);
 --        quem APROVA é sempre o restaurante PARCEIRO, confirmando o que
 --        recebeu. master_admin continua podendo aprovar qualquer coisa,
@@ -12,7 +12,7 @@ alter table public.restaurants
   add constraint restaurants_partner_not_self check (partner_restaurant_id is distinct from id);
 
 comment on column public.restaurants.partner_restaurant_id is
-  'Restaurante com quem este troca insumos (ex: Lucianis <-> Point da Pizza). Quem lança fica com o lote; o parceiro aprova.';
+  'Restaurante com quem este troca insumos. Quem lança fica com o lote; o parceiro aprova.';
 
 create or replace function public.current_restaurant_partner_id()
 returns uuid
