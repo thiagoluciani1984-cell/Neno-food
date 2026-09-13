@@ -24,16 +24,27 @@ export async function applyOrderPaymentUpdate(
   };
   if (providerRef) paymentUpdate.provider_ref = providerRef;
 
-  await supabase.from("payments").update(paymentUpdate).eq("order_id", orderId);
+  const { error: paymentError } = await supabase
+    .from("payments")
+    .update(paymentUpdate)
+    .eq("order_id", orderId);
+  if (paymentError) throw paymentError;
 
-  const { data: currentOrder } = await supabase
+  const { data: currentOrder, error: orderReadError } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, payment_status")
     .eq("id", orderId)
-    .single<{ status: OrderStatus }>();
+    .single<{ status: OrderStatus; payment_status: "pending" | "paid" | "failed" | "refunded" }>();
 
+  if (orderReadError) throw orderReadError;
   if (!currentOrder) {
     return { updated: false, orderStatus };
+  }
+
+  // Eventos do Asaas podem chegar fora de ordem. Um evento antigo de falha
+  // nunca pode desfazer um pagamento que já foi confirmado.
+  if (currentOrder.payment_status === "paid" && paymentStatus !== "paid") {
+    return { updated: false, orderStatus: currentOrder.status };
   }
 
   // Só avança o pedido a partir de um evento de pagamento se ele ainda
@@ -43,7 +54,11 @@ export async function applyOrderPaymentUpdate(
   // só o payment_status é atualizado, pra manter o registro de pagamento
   // correto sem corromper o estado do pedido.
   if (currentOrder.status !== "payment_pending") {
-    await supabase.from("orders").update({ payment_status: paymentStatus }).eq("id", orderId);
+    const { error } = await supabase
+      .from("orders")
+      .update({ payment_status: paymentStatus })
+      .eq("id", orderId);
+    if (error) throw error;
     return { updated: false, orderStatus: currentOrder.status };
   }
 
@@ -56,7 +71,7 @@ export async function applyOrderPaymentUpdate(
     timestamps.cancelled_at = new Date().toISOString();
   }
 
-  await supabase
+  const { error: orderUpdateError } = await supabase
     .from("orders")
     .update({
       status: orderStatus,
@@ -64,6 +79,7 @@ export async function applyOrderPaymentUpdate(
       ...timestamps,
     })
     .eq("id", orderId);
+  if (orderUpdateError) throw orderUpdateError;
 
   await notifyOrderStatusChange(orderId, orderStatus);
 

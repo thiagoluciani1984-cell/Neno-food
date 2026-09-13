@@ -31,3 +31,15 @@ export async function getOrderPaymentView(
 
   return { order, payment };
 }
+
+/** Confirma acesso ao pedido usando RLS antes de uma operação administrativa. */
+export async function canAccessOrderPayment(orderId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("id", orderId)
+    .maybeSingle<{ id: string }>();
+
+  return Boolean(data?.id);
+}
